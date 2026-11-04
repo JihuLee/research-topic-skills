@@ -27,7 +27,7 @@
 | 스킬 | 하는 일 | 주 산출물 |
 |---|---|---|
 | `novelty-gate` | 제안서·후보를 적대적으로 검토한다. 주장을 분해하고, 질의 계열 A–F로 선행을 찾고, 결정적 문장을 원문에서 대조한다. 고전 동치와 이론 강제 여부를 검사하고, 신규성과 실행 가능성을 따로 채점하고, B0를 설계한다 | `gate_report.md`, `evidence.jsonl`, `thresholds.json` |
-| `topic-scout` | 연구자의 코퍼스(논문·코드·노트·과거 보고서)와 프로필에서 생성 관점(lens)별로 후보를 만든다. 객관적 사실로만 1차 거른 뒤 상위 후보를 `novelty-gate`에 넘긴다 | `corpus_manifest.md`, `scout_report.md` |
+| `topic-scout` | 정한 level(high: 내 논문·코드·노트 기반, low: 내 분야의 최근 문헌 탐색)과 depth(quick, standard, full)로 번호 붙은 후보를 만든다. 객관적 사실로만 1차 거른 뒤 상위 후보를 `novelty-gate`에 넘긴다 | `candidates.jsonl`, `scout_report.md`, `corpus_manifest.md` 또는 `landscape.md` |
 | `research-brief` | 통과한 후보를 실행 명세로 바꾼다. 사용자 양식이 있으면 그 양식을 쓰고, 문헌 사실을 본문에 넣고, 임계값 해시를 고정한다. 사람 팀이나 자동 연구 에이전트가 이 명세로 실행한다 | `brief.md`, `thresholds.json.sha256` |
 
 ```
@@ -83,7 +83,7 @@ $EDITOR ~/research-profile/profile.md                                        # j
 3. 현재 폴더의 `./research-profile/`
 4. 홈의 `~/research-profile/`
 
-모두 없으면 스킬이 꼭 필요한 항목만 묻는다.
+모두 없으면 네 가지만 한 번 묻고 프로필을 만든다(아래 참고).
 
 ## 자율 연구 framework와의 분리 (guardrail)
 
@@ -105,6 +105,34 @@ framework 쪽에서 할 일은 둘 중 하나다.
 - 작업 공간 루트에 `touch <workspace>/.no-research-topic-skills`를 만든다.
 
 이 guard는 에이전트가 지시를 따른다는 전제의 **협조형** 장치다. 완전히 격리하려면 framework를 별도 OS 사용자로 돌리거나, 스킬을 프로젝트 수준으로만 설치한다.
+
+## 주제 찾기: level과 depth
+
+그냥 요청하면 된다. `topic-scout`가 `scripts/scout_settings.py`로 요청을 설정으로 바꾸고, 시작하기 전에 짧은 카드로 보여 준다.
+
+```
+주제 찾아줘
+탐색적으로 빠르게 주제 찾아줘, 분야는 의료영상
+./my-project 내 코드 기반으로 꼼꼼하게 주제 찾아줘
+```
+
+| level | 재료 | 알아듣는 말 |
+|---|---|---|
+| high | 대부분 내 자료(코퍼스, 보유 자산, ledger의 근접 후보, 80%) | "내 코드", "내 논문", "후속", "based on my code" |
+| medium (기본) | 내 자료 절반, 최근 문헌 절반 | (기본값) |
+| low | 분야와 취향만 맞춰 최근 문헌을 탐색. 코퍼스는 열지 않는다 | "탐색적", "넓게", "분야만", "exploratory" |
+
+| depth | 어디까지 하나 | 알아듣는 말 |
+|---|---|---|
+| quick | 번호 붙은 후보와 가벼운 검색 결과까지. 검토할 후보는 사용자가 고른다 | "빠르게", "후보만", "quick" |
+| standard (기본) | 1위 후보 하나를 `novelty-gate` light 모드로 검토 | (기본값) |
+| full | 상위 3개를 full 모드로 검토 | "꼼꼼", "자세히", "thorough" |
+
+- **level과 무관하게 지키는 것:** 제외 분야, 예산, 정답 정책, ledger 중복 검사, 판정 기준.
+- **직접 지정:** `level: low`, `depth: full`, `분야는 …`, `기준일 2026-01-31`, `out: ./scout`, 자료 경로를 요청에 적으면 그대로 쓴다.
+- **프로필 기본값:** `scout_level`, `scout_depth`, `corpus_paths`.
+- **이어서 쓰기:** 후보는 C1, C2, …로 번호를 붙여 `candidates.jsonl`에 저장한다. "C3 검토해줘", "C1로 명세 써줘"처럼 이어서 요청하면 된다.
+- **처음 쓸 때:** 프로필이 없으면 네 가지(분야, 제외 분야, 예산, 언어)만 한 번 묻고, `scripts/profile_init.py`로 `~/research-profile`을 만든 뒤 이어서 진행한다.
 
 ## 데이터 파일 명세 (프로필 폴더)
 
@@ -136,6 +164,9 @@ framework 쪽에서 할 일은 둘 중 하나다.
 | `recency_window_months` | 정수 | 6 | 최근 문헌 sweep 범위 |
 | `approval_required_for` | 목록(`downloads`, `experiments`, `gpu`) | 셋 다 | 승인 없이는 하지 않는 일 |
 | `report_dir_pattern` | 문자열(`{slug}`, `{date}` 치환) | `./gate-{slug}-{date}/` | 산출물 위치 |
+| `scout_level` | `high` / `medium` / `low` | `medium` | topic-scout가 내 자료를 얼마나 쓸지 |
+| `scout_depth` | `quick` / `standard` / `full` | `standard` | 후보만 / 1위 검토(light) / 상위 3개 검토(full) |
+| `corpus_paths` | 경로 목록 | `[]` | 요청에 경로가 없을 때 topic-scout가 쓸 자료 |
 | `handoff_template` | 경로 또는 `null` | `null` | research-brief가 채울 사용자 양식 |
 | `content_check_command` | 문자열 또는 `null` | `null` | 넘기기 전에 brief에 실행할 검사 명령(예: 비밀 문자열 검사). 출력에 패턴을 찍지 않는 명령이어야 한다 |
 
@@ -230,12 +261,14 @@ ledger는 두 가지에 쓰인다.
 
 | 스크립트 | 위치 | 기능 |
 |---|---|---|
-| `lit_fetch.py` | gate, scout | `arxiv`(날짜 필터, 엄격한 키워드), `openalex`(관련도 검색과 날짜 필터), `citing`(forward citation), `resolve`(인용 존재 확인; arXiv id도 OpenAlex를 먼저 조회하고, `--no-arxiv` 지원), `pdf`(받기와 텍스트 추출). `--save-abstracts DIR`로 초록을 파일로 남겨 ABS 인용도 대조할 수 있다. arXiv가 HTTP 429를 내면 한 번만 짧게 재시도한 뒤 바로 실패한다 |
-| `quote_check.py` | gate | `evidence.jsonl`의 FT 인용이 원문에 실제로 있는지 정규화해서 대조한다(합자, 줄바꿈 하이픈, 공백) |
+| `lit_fetch.py` | gate, scout | `arxiv`(날짜 필터, 엄격한 키워드), `openalex`(관련도 검색과 날짜 필터), `citing`(forward citation), `resolve`(인용 존재 확인; arXiv id도 OpenAlex를 먼저 조회하고, `--no-arxiv` 지원), `pdf`(받기와 텍스트 추출). `--save-abstracts DIR`로 초록을 파일로 남겨 ABS 인용도 대조할 수 있다. HTTP 429가 나면 한 번만 짧게 재시도한 뒤 안내와 함께 바로 실패한다. OpenAlex는 하루 한도가 있다(키 없이 검색 약 100번, 무료 키를 쓰면 약 10배). openalex.org Settings에서 키를 받아 `export OPENALEX_API_KEY=...`로 설정한다 |
+| `quote_check.py` | gate, scout | `evidence.jsonl`의 FT 인용이 원문에 실제로 있는지 정규화해서 대조한다(합자, 줄바꿈 하이픈, 공백) |
 | `report_lint.py` | gate, brief | `gate`: summary 스키마, 탈락 근거, 대조군 4종, B0, coverage. `brief`: 빈 항목, 자리표시, 문헌 URL 수, 임계값 해시 |
 | `ledger.py` | 모두 | `validate`, `list`, `check`(근접 중복), `add`(`--from-summary` 포함), `update` |
 | `freeze.py` | gate, brief | `template`, `freeze`(정규화 JSON의 sha256), `verify`(어긋나면 실패), `amend --reason`(수정 이력을 `.amendments.jsonl`에 남김; 결과를 본 뒤에는 강화만 허용) |
 | `corpus_scan.py` | scout | 코퍼스에서 단서 위치를 색인한다 |
+| `scout_settings.py` | scout | 요청, 프로필, 기본값에서 level, depth, 코퍼스, 분야, 기준일, 출력 폴더를 정하고 설정 카드를 출력한다 |
+| `profile_init.py` | 모두 | 몇 가지 답으로 프로필 폴더를 만든다(`--force` 없이는 덮어쓰지 않음) |
 | `guard.py` | 모두 | 자율 파이프라인 안이면 차단한다(종료 코드 3) |
 
 ## 검증
@@ -290,6 +323,13 @@ python3 tools/validate_skills.py               # Agent Skills 규격과 이식�
 - 스킬 파일은 자기 폴더 밖(`../`)을 참조하지 않는다. 따로 설치해도 동작해야 하기 때문이다.
 - `SKILL.md` 본문은 500줄 미만으로 유지하고, 자세한 내용은 `references/`에 둔다.
 - 개발 중에 작업 사본을 바로 쓰려면 `tools/install.sh claude-user` 또는 `tools/install.sh codex-user`로 에이전트 스킬 폴더에 링크한다.
+
+## 변경 이력
+
+- **0.2.0**
+  - topic-scout에 level(high/medium/low)과 depth(quick/standard/full), 설정 카드, 후보 번호와 후속 요청, 처음 사용 시 자동 설정을 추가했다.
+  - novelty-gate에 light 모드를 추가했다.
+- **0.1.0** — 첫 공개: novelty-gate, topic-scout, research-brief, 도우미 스크립트, 프로필 명세, guardrail.
 
 ## 출처와 감사
 

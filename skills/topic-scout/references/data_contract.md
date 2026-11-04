@@ -10,7 +10,7 @@ Use the first match:
 3. `./research-profile/` in the current working directory.
 4. `~/research-profile/` in the home directory.
 
-If none is found, ask once for the three essentials: interests and exclusions, compute and download budgets, and the novelty entry threshold. Otherwise proceed with the defaults below and state them in the report.
+If none is found, follow [onboarding.md](onboarding.md): ask four short questions once, create the profile with `scripts/profile_init.py`, and continue. If the user declines, proceed with the defaults below and state them in the report.
 
 ## Files
 
@@ -37,6 +37,9 @@ If none is found, ask once for the three essentials: interests and exclusions, c
 | `recency_window_months` | int | 6 | recency sweep |
 | `approval_required_for` | list | `["downloads","experiments","gpu"]` | actions never taken without the user's approval |
 | `report_dir_pattern` | string | `./gate-{slug}-{date}/` | output location |
+| `scout_level` | `high` / `medium` / `low` | `medium` | topic-scout: how much it draws on your own material |
+| `scout_depth` | `quick` / `standard` / `full` | `standard` | topic-scout: candidates only / gate the top 1 (light) / gate the top 3 |
+| `corpus_paths` | list of paths | `[]` | topic-scout corpus when the request names none |
 | `handoff_template` | path | none | research-brief template |
 | `content_check_command` | string | none | command research-brief runs on a brief before handoff |
 
@@ -69,6 +72,9 @@ Use `scripts/ledger.py` to validate, search and append. A ledger match with a na
 
 ## How each skill uses the files
 
-- **topic-scout** reads all files. `corpus/` and `assets.md` drive generation. `exclusions`, `budgets` and the ledger drive pre-filtering.
+- **topic-scout** reads by level (see its `levels.md`):
+  - `profile.md` and the ledger at every level; the ledger is for the duplicate check.
+  - The corpus and `assets.md` at high and medium only.
+  - It does not need `lessons.md`; the gate applies it.
 - **novelty-gate** reads `profile.md`, `lessons.md` (applied as a checklist) and the ledger (duplicate check). It appends a ledger entry after the user confirms the verdict.
 - **research-brief** reads `profile.md` (budgets, `handoff_template`, `content_check_command`) and `assets.md`.

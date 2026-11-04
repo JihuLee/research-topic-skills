@@ -1,6 +1,11 @@
 # Generation lenses
 
-Each lens is a different way to look at the corpus. Fix the list before generating; skip lenses the profile excludes. Compute or systems optimization is **not** a default lens. Add it only when the profile allows such topics.
+Each lens is a different way to look for candidates. Which lenses run depends on the level (see [levels.md](levels.md)):
+- **own-material lenses** (1, 2, 3, 8, 9) read the corpus, `assets.md` and the ledger;
+- **landscape lenses** (4, 5, 6, 7, applied to `landscape.md`) read recent literature;
+- at level low only the landscape lenses run.
+
+Fix the list before generating; skip lenses the profile excludes. Compute or systems optimization is **not** a default lens. Add it only when the profile allows such topics.
 
 ## Lenses
 
@@ -44,16 +49,23 @@ Each lens is a different way to look at the corpus. Fix the list before generati
 One record per idea. These fields feed the pre-filter and the gate.
 
 ```json
-{"id": "S07", "lens": "assumption-relaxation",
+{"id": "C7", "lens": "assumption-relaxation", "source": "corpus", "level": "medium",
  "hypothesis": "one sentence, falsifiable",
  "mechanism": "why it would be true",
  "conclusion_at_stake": "which conclusion or ranking changes if true",
  "contribution": "method | benchmark | analysis | theory | dataset",
  "b0_sketch": "cheapest test, one or two lines",
  "assets": ["owned asset names used, if any"],
- "source": "corpus file:line or ledger id that inspired it",
- "dedup_key": "short slug of the hypothesis"}
+ "seed": "corpus file:line, ledger id, or landscape.md entry that inspired it",
+ "dedup_key": "short slug of the hypothesis",
+ "status": "generated | dropped | annotated | gated",
+ "flags": ["negative patterns from prefilter.md, if any"],
+ "related": [{"title": "...", "url": "...", "tag": "ABS"}],
+ "reason": "why dropped, or the gate verdict",
+ "rank": 3.6}
 ```
+
+Write records in English so they match the ledger; the report uses the profile's language. `source` is one of `corpus`, `assets`, `ledger`, `landscape` or `profile`. Ids are `C1`, `C2`, … in generation order and stay fixed for the whole run, so follow-up requests such as "gate C3" can refer to them.
 
 A good candidate:
 - matters whichever way its B0 turns out;

@@ -3,7 +3,7 @@ name: novelty-gate
 description: Adversarial novelty-and-feasibility gate for a research idea, topic or proposal, run before any experiment. Breaks the idea into claims; hunts the closest recent prior work (same input contract, same claim, same computation under classical names, same benchmark, recent-months sweep, forward citations); verifies decisive quotes in full text; checks for classical equivalents and theory-forced results; scores novelty and feasibility 1-5 separately; and designs the cheapest falsifying pre-experiment (B0) with four baselines and frozen thresholds. Returns PASS, NEAR-MISS or NONE backed by named evidence. Use it whenever someone wants to vet, desk-review, novelty-check or prior-art-check a research idea, asks "has this been done", wants a go/no-go or kill test before implementing, or says G0, 신규성 검토, 선행 연구 확인, 연구 주제 검증, 제안서 심사, even for a rough pasted idea. For interactive use with a researcher, not for autonomous research pipelines.
 compatibility: Claude Code or Codex. Needs web access for literature search. Python 3.8+ stdlib scripts; pymupdf or pdftotext optional for PDF text.
 metadata:
-  version: "0.1"
+  version: "0.2"
 ---
 
 # Novelty gate
@@ -20,7 +20,7 @@ This gate looks for those three first. LLM-generated ideas tend to look more nov
 ## Who may use this skill
 Use is allowed when a researcher asked for it, directly or through an agent working for them in the same session; subagents spawned for that request count. It is not for autonomous research frameworks or other unattended pipelines. Those runs follow their own frozen workflow, cannot answer the approval questions this skill asks, and would leave extra folders behind.
 
-First run `python3 scripts/guard.py`. If it exits non-zero, stop and report its message. Also stop without doing anything if you are running as a stage of such a pipeline rather than for a person's request.
+First run `python3 <this-skill-dir>/scripts/guard.py`. If it exits non-zero, stop and report its message. Also stop without doing anything if you are running as a stage of such a pipeline rather than for a person's request.
 
 ## Inputs
 - **The proposal:** a file, pasted text, or a list of candidates.
@@ -30,6 +30,15 @@ First run `python3 scripts/guard.py`. If it exits non-zero, stop and report its 
 
 ## Paths
 `scripts/…` and `references/…` are relative to this skill's own directory. Your working directory is usually the user's project, so call scripts by absolute path, for example `python3 <this-skill-dir>/scripts/ledger.py …`. Write outputs to the output directory, never into the skill directory. Do not read `evals/`: it holds the answers to the skill's tests.
+
+## Modes
+- **Full** (default): the workflow below as written.
+- **Light**: for quick checks, or when topic-scout runs at depth standard, or when the user asks for a quick review.
+  - No subagents.
+  - Query formulations are shared across claims.
+  - At most 4 decisive priors are verified in full text.
+  - Everything else is the same: evidence tags, the gate-summary block and the lint.
+  - State the mode in the report header.
 
 ## Ground rules
 - **Design B0, do not run it.** No experiments, dataset or weight downloads, installs or GPU jobs without the user's explicit approval. Downloading paper PDFs is fine. The user decides what to spend.

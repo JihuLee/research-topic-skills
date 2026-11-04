@@ -34,6 +34,9 @@ The numbers below are placeholders, not recommendations.
   "recency_window_months": 6,
   "approval_required_for": ["downloads", "experiments", "gpu"],
   "report_dir_pattern": "./gate-{slug}-{date}/",
+  "scout_level": "medium",
+  "scout_depth": "standard",
+  "corpus_paths": [],
   "handoff_template": null,
   "content_check_command": null
 }

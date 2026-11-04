@@ -28,7 +28,10 @@ Text output, one block per result:
      abstract (truncated to 400 characters unless --full)
 
 Environment
-  LIT_FETCH_MAILTO   optional e-mail for OpenAlex's polite pool; nothing is sent unless set.
+  OPENALEX_API_KEY   optional free OpenAlex key (sent as an Authorization header). Without a key
+                     OpenAlex allows about 100 searches a day; with a free key about ten times more.
+                     Get one at openalex.org (Settings) and export it; it is never printed.
+  LIT_FETCH_MAILTO   optional e-mail added to OpenAlex requests; nothing is sent unless set.
 
 Be polite: arXiv asks for about 3 s between API calls; this script waits automatically. On
 HTTP 429 (rate limit) it retries once briefly and then fails fast: switch to `openalex` or wait.
@@ -63,7 +66,11 @@ class FetchError(RuntimeError):
 
 
 def http_get(url, binary=False, retries=3, timeout=30):
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    headers = {"User-Agent": USER_AGENT}
+    key = os.environ.get("OPENALEX_API_KEY")
+    if key and urllib.parse.urlparse(url).netloc == "api.openalex.org":
+        headers["Authorization"] = f"Bearer {key}"
+    req = urllib.request.Request(url, headers=headers)
     delay = 2.0
     last_err = None
     for attempt in range(retries + 1):
@@ -74,15 +81,21 @@ def http_get(url, binary=False, retries=3, timeout=30):
         except urllib.error.HTTPError as e:
             last_err = e
             if e.code == 429:
-                if attempt == 0:
-                    try:
-                        wait = min(10.0, float(e.headers.get("Retry-After") or 5))
-                    except ValueError:
-                        wait = 5.0
-                    time.sleep(wait)
+                try:
+                    retry_after = float(e.headers.get("Retry-After") or 5)
+                except ValueError:
+                    retry_after = 5.0
+                if attempt == 0 and retry_after <= 10:
+                    time.sleep(retry_after)
                     continue
-                raise FetchError(f"HTTP 429 rate limited by {urllib.parse.urlparse(url).netloc}; "
-                                 "use openalex or retry in a few minutes") from e
+                host = urllib.parse.urlparse(url).netloc
+                if "openalex" in host:
+                    hint = ("OpenAlex budget exhausted for now (retry in about "
+                            f"{retry_after / 3600:.1f} h). Set OPENALEX_API_KEY (a free key gives about ten times "
+                            "the budget), or continue with `arxiv` and the host's web search")
+                else:
+                    hint = "arXiv rate limit; continue with `openalex` or the host's web search, or retry in a few minutes"
+                raise FetchError(f"HTTP 429 from {host}: {hint}") from e
             if e.code in (500, 502, 503, 504) and attempt < retries:
                 time.sleep(delay)
                 delay *= 2

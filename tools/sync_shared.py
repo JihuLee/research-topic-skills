@@ -14,11 +14,12 @@ import shutil
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SHARED_REFS = ["data_contract.md", "rubric.md", "evidence_rules.md"]
+SHARED_REFS = ["data_contract.md", "rubric.md", "evidence_rules.md", "onboarding.md"]
 SHARED_SCRIPTS = {
-    "novelty-gate": ["guard.py", "lit_fetch.py", "ledger.py", "freeze.py", "report_lint.py"],
-    "topic-scout": ["guard.py", "lit_fetch.py", "ledger.py"],
-    "research-brief": ["guard.py", "freeze.py", "report_lint.py", "ledger.py"],
+    "novelty-gate": ["guard.py", "profile_init.py", "lit_fetch.py", "ledger.py", "freeze.py", "report_lint.py",
+                     "quote_check.py"],
+    "topic-scout": ["guard.py", "profile_init.py", "lit_fetch.py", "ledger.py", "quote_check.py"],
+    "research-brief": ["guard.py", "profile_init.py", "freeze.py", "report_lint.py", "ledger.py"],
 }
 
 

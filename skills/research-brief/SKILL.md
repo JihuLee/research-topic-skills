@@ -3,7 +3,7 @@ name: research-brief
 description: Turns a research candidate that passed a novelty gate into an execution-ready specification for a human team or an autonomous research agent. Covers the question, a falsifiable hypothesis, baselines with code, weights and licenses, dataset splits with leakage rules, one primary endpoint with confidence intervals, pre-registered thresholds frozen with a hash, B0/validity/sealed-evaluation gates, compute limits, and an inline literature section for executors without web access. Fills the user's own template when the profile names one. Use it whenever someone asks to write up, hand off, or prepare a research input, spec, brief, study plan or pre-registration for a vetted topic, including 연구 입력서, 실행 명세, 연구 계획서, 제안서 작성, 사전 등록. For interactive use with a researcher, not for autonomous research pipelines.
 compatibility: Claude Code or Codex. Python 3.8+ stdlib scripts.
 metadata:
-  version: "0.1"
+  version: "0.2"
 ---
 
 # Research brief
@@ -17,7 +17,7 @@ Make the next stage able to run the study without re-deciding anything, and unab
 ## Who may use this skill
 Use is allowed when a researcher asked for it, directly or through an agent working for them in the same session; subagents spawned for that request count. It is not for autonomous research frameworks or other unattended pipelines. Those runs follow their own frozen workflow, cannot answer the approval questions this skill asks, and would leave extra folders behind.
 
-First run `python3 scripts/guard.py`. If it exits non-zero, stop and report its message. Also stop without doing anything if you are running as a stage of such a pipeline rather than for a person's request.
+First run `python3 <this-skill-dir>/scripts/guard.py`. If it exits non-zero, stop and report its message. Also stop without doing anything if you are running as a stage of such a pipeline rather than for a person's request.
 
 ## Inputs
 - **A gate report** (`gate_report.md` and `evidence.jsonl` from the novelty-gate skill) with a PASS candidate. If the candidate is not PASS, ask the user to confirm an override and record that override in the brief.

@@ -10,7 +10,7 @@ The pre-filter shrinks the list before the expensive gate. It may only drop for 
 | Ground-truth policy | The primary metric would need ground truth the policy forbids, such as new human ratings or LLM judgments. |
 | Budget | A credible B0 cannot fit the largest budget tier. Effects visible only at scales beyond the budget count here. |
 | Data unavailable | The required data or weights are provably not obtainable under the profile (non-public, or a license conflict). |
-| Ledger duplicate | `ledger.py check` finds a killed topic with a named killer, and the candidate does not state what changed. |
+| Ledger duplicate | `ledger.py check` finds a past topic with verdict `killed`, `closed` or `dropped` that names a killer or a reason, and the candidate does not state what changed. |
 
 ## Flag and annotate (do not drop)
 
@@ -25,4 +25,4 @@ These are the classic ways an idea turns out empty. Flag them so the gate checks
 
 ## Quick novelty signal
 
-For each survivor, run 2–3 targeted searches and attach what looks related, with links. Drop the idea only when a named paper clearly already contains its result, and say which paper. Everything else goes to ranking.
+Run 1–2 targeted searches for the top survivors within the run's query budget (see `levels.md`), and attach what looks related, with links. Mark the others "not checked". Drop the idea only when a named paper clearly already contains its result, and say which paper. Everything else goes to ranking.

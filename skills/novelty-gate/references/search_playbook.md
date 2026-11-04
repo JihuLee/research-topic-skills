@@ -50,6 +50,8 @@ If one of these closes most of the gap, the idea's contribution shrinks to that 
 
 Semantic Scholar without an API key rate-limits quickly. Treat it as optional.
 
+OpenAlex has a daily budget: about 100 searches without a key, about ten times more with a free key (`OPENALEX_API_KEY`). When it answers HTTP 429, continue with arXiv and web search, log a FAIL entry, and mention the key to the user.
+
 ## 3. Classical-equivalence traps
 
 A starter list; extend it with the user's `lessons.md`. For each candidate, write the reduced computation and check it against these:

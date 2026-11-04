@@ -50,7 +50,7 @@ The helper scripts need Python 3.8+ (standard library only). PDF text extraction
 | Skill | What it does | Main outputs |
 |---|---|---|
 | `novelty-gate` | Adversarially reviews an idea or proposal. It breaks the idea into claims and searches query families A–F for prior work. It verifies decisive quotes in full text and checks for classical equivalents and theory-forced results. It scores novelty and feasibility separately and designs a B0. | `gate_report.md`, `evidence.jsonl`, `thresholds.json` |
-| `topic-scout` | Generates candidates from a researcher's corpus (papers, code, notes, past reports) and profile, using explicit lenses. It drops ideas only for objective reasons, then sends a shortlist to `novelty-gate`. | `corpus_manifest.md`, `scout_report.md` |
+| `topic-scout` | Generates numbered candidates at a chosen level (high: from the researcher's own papers, code and notes; low: exploring recent literature in their field) and depth (quick, standard, full). It drops ideas only for objective reasons, then sends a shortlist to `novelty-gate`. | `candidates.jsonl`, `scout_report.md`, `corpus_manifest.md` or `landscape.md` |
 | `research-brief` | Turns a passing candidate into an execution-ready specification for a human team or an autonomous research agent. It uses the researcher's own template if one is configured, inlines the literature facts, and freezes the threshold hash. | `brief.md`, `thresholds.json.sha256` |
 
 ```
@@ -76,7 +76,7 @@ The skills look for the profile directory in this order:
 3. `./research-profile/` in the working directory.
 4. `~/research-profile/` in the home directory.
 
-If none is found, the skill asks only for the essentials.
+If none is found, the skill asks four short questions once and creates one (see below).
 
 To start a profile, copy [`templates/`](templates) from this repository:
 
@@ -104,6 +104,41 @@ For an autonomous framework, do one of these:
 - create `<workspace>/.no-research-topic-skills` at its workspace root.
 
 The guard is cooperative: it relies on the agent following instructions. For hard isolation, run frameworks under a separate OS user, or install the skills at project level only.
+
+## Finding topics: level and depth
+
+Just ask; `topic-scout` turns your words into settings with `scripts/scout_settings.py` and shows them as a short card before it starts:
+
+```
+Find me a research topic.
+Explore broadly and quickly, field: medical imaging.
+Based on my code in ./my-project, thorough please.
+```
+
+```
+level: low (request (phrase)) · depth: quick (request (phrase)) · gate: none (the user picks what to gate)
+corpus: - (not used (level low))
+direction: medical imaging · cutoff: 2026-11-04 · out: ./scout-2026-11-04-low
+profile: ~/research-profile (found)
+```
+
+| level | Draws on | Phrases |
+|---|---|---|
+| high | mostly your own material: corpus, assets, ledger near-misses (80%) | "based on my code", "my paper", "follow-up", "내 코드", "후속" |
+| medium (default) | half your material, half recent literature | (default) |
+| low | recent literature only, matched to your field and taste; the corpus is never opened | "exploratory", "broadly", "just the field", "탐색적", "분야만" |
+
+| depth | Goes until | Phrases |
+|---|---|---|
+| quick | numbered candidates with quick novelty signals; you pick what to vet | "quick", "candidates only", "빠르게", "후보만" |
+| standard (default) | the top candidate vetted by `novelty-gate` in light mode | (default) |
+| full | the top three vetted in full mode | "thorough", "in depth", "꼼꼼", "자세히" |
+
+- **Never affected by the level:** exclusions, budgets, the ground-truth policy, the ledger duplicate check, and the gate's standards.
+- **Explicit settings:** you can state any of them directly, for example `level: low`, `depth: full`, `field: …`, `cutoff 2026-01-31`, `out: ./scout`, or a path to your material.
+- **Profile defaults:** `scout_level`, `scout_depth` and `corpus_paths` in your profile.
+- **Follow-ups:** candidates are numbered C1, C2, … and saved in `candidates.jsonl`, so you can continue with "gate C3" or "brief C1".
+- **First use:** with no profile yet, the skill asks four short questions once (areas, exclusions, budget, language), creates `~/research-profile` with `scripts/profile_init.py`, and continues.
 
 ## Profile directory specification
 
@@ -135,6 +170,9 @@ The guard is cooperative: it relies on the agent following instructions. For har
 | `recency_window_months` | int | 6 | recency sweep |
 | `approval_required_for` | list (`downloads`, `experiments`, `gpu`) | all three | actions never taken without approval |
 | `report_dir_pattern` | string with `{slug}`, `{date}` | `./gate-{slug}-{date}/` | output location (a directory named in the request wins) |
+| `scout_level` | `high` / `medium` / `low` | `medium` | topic-scout: how much it draws on your own material |
+| `scout_depth` | `quick` / `standard` / `full` | `standard` | topic-scout: candidates only / vet the top 1 (light) / vet the top 3 (full) |
+| `corpus_paths` | list of paths | `[]` | topic-scout material when the request names none |
 | `handoff_template` | path or `null` | `null` | your own template for research-brief |
 | `content_check_command` | string or `null` | `null` | command research-brief runs on a brief before handoff (for example a secret scanner). It must not print the patterns it matches |
 
@@ -231,11 +269,13 @@ All scripts use only the Python standard library.
 |---|---|---|
 | `guard.py` | all | Blocks use inside autonomous pipelines (exit code 3) |
 | `lit_fetch.py` | gate, scout | Literature commands (details below) |
-| `quote_check.py` | gate | Checks that each FT quote in `evidence.jsonl` occurs in the cited text, after normalising ligatures, line-break hyphens and whitespace |
+| `quote_check.py` | gate, scout | Checks that each FT quote in `evidence.jsonl` occurs in the cited text, after normalising ligatures, line-break hyphens and whitespace |
 | `report_lint.py` | gate, brief | `gate`: summary schema, kill evidence, four baselines, B0 and coverage. `brief`: unfilled fields, placeholders, literature URL count, threshold hash |
 | `ledger.py` | all | `validate`, `list`, `check` (near-duplicates), `add` (including `--from-summary`), `update` |
 | `freeze.py` | gate, brief | `template`, `freeze` (sha256 of canonical JSON), `verify`, `amend --reason` (logs every change; after results, amendments may only tighten) |
 | `corpus_scan.py` | scout | Indexes leads in a corpus |
+| `scout_settings.py` | scout | Resolves level, depth, corpus, direction, cutoff and output directory from the request, profile and defaults; prints the settings card |
+| `profile_init.py` | all | Creates a profile directory from a few answers (never overwrites without `--force`) |
 
 `lit_fetch.py` commands:
 - `arxiv`: date-filtered keyword search. Matching is exact-token.
@@ -244,7 +284,8 @@ All scripts use only the Python standard library.
 - `resolve`: confirms a citation exists. It queries OpenAlex first, including for arXiv ids; `--no-arxiv` skips the arXiv API.
 - `pdf`: downloads a PDF and extracts its text.
 - `--save-abstracts DIR`: saves abstracts so ABS quotes can be checked too.
-- On arXiv HTTP 429 it retries once briefly, then fails fast.
+- On HTTP 429 it retries once briefly, then fails fast with a hint.
+- OpenAlex has a daily budget: about 100 searches without a key, about ten times more with a free key. Get one at openalex.org (Settings) and `export OPENALEX_API_KEY=...`; it is sent as a header and never printed.
 
 ## Validation
 
@@ -297,6 +338,13 @@ python3 tools/validate_skills.py                          # Agent Skills spec, p
 - Skill files must not reference anything outside their own directory (`../`), so that each skill works when installed alone.
 - Keep each `SKILL.md` body under 500 lines and move detail into `references/`.
 - To use a working clone directly while developing, link the skills into your agents' skill directories with `tools/install.sh claude-user` or `tools/install.sh codex-user`.
+
+## Changelog
+
+- **0.2.0**
+  - topic-scout gains level (high/medium/low) and depth (quick/standard/full), a settings card, numbered candidates with follow-ups, and first-use onboarding.
+  - novelty-gate gains a light mode.
+- **0.1.0** — first release: novelty-gate, topic-scout, research-brief, helper scripts, profile specification, guardrail.
 
 ## Credits
 

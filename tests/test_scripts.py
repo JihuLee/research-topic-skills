@@ -27,9 +27,11 @@ lit = load("lit_fetch", "shared/scripts/lit_fetch.py")
 ledger = load("ledger", "shared/scripts/ledger.py")
 freeze = load("freeze", "shared/scripts/freeze.py")
 lint = load("report_lint", "shared/scripts/report_lint.py")
-qc = load("quote_check", "skills/novelty-gate/scripts/quote_check.py")
+qc = load("quote_check", "shared/scripts/quote_check.py")
 scan = load("corpus_scan", "skills/topic-scout/scripts/corpus_scan.py")
 guard = load("guard", "shared/scripts/guard.py")
+settings = load("scout_settings", "skills/topic-scout/scripts/scout_settings.py")
+pinit = load("profile_init", "shared/scripts/profile_init.py")
 
 
 def read(path):
@@ -254,6 +256,79 @@ class TestCorpusScan(unittest.TestCase):
                 self.assertIn(needle, text)
         finally:
             shutil.rmtree(d)
+
+
+class TestScoutSettings(unittest.TestCase):
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.prof = os.path.join(self.d, "prof")
+        rc, _ = run(pinit.main, ["--dir", self.prof, "--interests", "medical imaging; uncertainty",
+                                 "--exclusions", "systems", "--level", "medium", "--depth", "standard"])
+        self.assertEqual(rc, 0)
+        self.proj = os.path.join(self.d, "proj")
+        os.makedirs(self.proj)
+        write(os.path.join(self.proj, "train.py"), "x = 1\n")
+        write(os.path.join(self.proj, "paper.tex"), "We assume.\n")
+
+    def tearDown(self):
+        shutil.rmtree(self.d)
+
+    def res(self, req, cwd=None):
+        return settings.resolve(req, profile=self.prof, cwd=cwd or self.proj, today="2026-11-05", env={})
+
+    def test_defaults_and_auto_corpus(self):
+        s = self.res("주제 찾아줘")
+        self.assertEqual((s["level"]["value"], s["level"]["source"]), ("medium", "profile"))
+        self.assertEqual((s["depth"]["value"], s["finalists"]["value"], s["gate_mode"]), ("standard", 1, "light"))
+        self.assertEqual(s["corpus"]["paths"], [self.proj])
+        self.assertEqual(s["cutoff"]["value"], "2026-11-05")
+
+    def test_korean_phrases(self):
+        s = self.res("탐색적으로 빠르게 주제 찾아줘, 분야는 의료영상")
+        self.assertEqual((s["level"]["value"], s["depth"]["value"], s["finalists"]["value"]), ("low", "quick", 0))
+        self.assertEqual(s["corpus"]["paths"], [])
+        self.assertEqual(s["direction"], "의료영상")
+        s = self.res("내 코드 기반으로 꼼꼼하게 주제 찾아줘")
+        self.assertEqual((s["level"]["value"], s["depth"]["value"], s["finalists"]["value"], s["gate_mode"]),
+                         ("high", "full", 3, "full"))
+
+    def test_explicit_overrides_and_paths(self):
+        other = os.path.join(self.d, "papers")
+        os.makedirs(other)
+        s = self.res(f"find topics level: high depth: quick cutoff 2026-01-31 out: ./scout from {other}")
+        self.assertEqual((s["level"]["source"], s["depth"]["source"]), ("request (explicit)", "request (explicit)"))
+        self.assertEqual(s["cutoff"]["value"], "2026-01-31")
+        self.assertEqual(s["corpus"]["paths"], [other])
+        self.assertEqual(s["out_dir"]["value"], os.path.join(self.proj, "scout"))
+
+    def test_out_dir_is_not_a_corpus_path(self):
+        s = self.res("탐색적으로 빠르게 주제 찾아줘. out: /nonexistent/run-dir.")
+        self.assertEqual(s["out_dir"]["value"], "/nonexistent/run-dir")
+        self.assertFalse(any("not found" in n for n in s["notes"]))
+
+    def test_low_ignores_corpus_and_conflicts(self):
+        s = self.res("level: low, use ./train.py")
+        self.assertEqual(s["corpus"]["paths"], [])
+        self.assertTrue(any("not read" in n for n in s["notes"]))
+        s = self.res("내 코드로 탐색적으로")
+        self.assertEqual(s["level"]["value"], "medium")
+        self.assertTrue(any("both" in n for n in s["notes"]))
+
+    def test_missing_profile(self):
+        s = settings.resolve("주제 찾아줘", profile=None, cwd=self.proj, today="2026-11-05", env={"HOME": self.d})
+        # the real home may hold a profile; only check the status field is well-formed
+        self.assertIn(s["profile"]["status"], ("found", "missing"))
+        rc, out = run(settings.main, ["--request", "x", "--profile", os.path.join(self.d, "nope"), "--cwd", self.d])
+        self.assertIn("level: medium", out)
+
+    def test_profile_init_refuses_overwrite_and_template_parses(self):
+        rc, out = run(pinit.main, ["--dir", self.prof, "--interests", "x"])
+        self.assertEqual(rc, 1)
+        c = settings.load_constants(self.prof)
+        self.assertEqual(c["interests"], ["medical imaging", "uncertainty"])
+        tpl = settings.load_constants(os.path.join(ROOT, "templates"))
+        self.assertIn(tpl["scout_level"], settings.LEVELS)
+        self.assertIn(tpl["scout_depth"], settings.DEPTHS)
 
 
 class TestGuard(unittest.TestCase):
