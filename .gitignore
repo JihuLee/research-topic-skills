@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*-workspace/
+.DS_Store
+# run outputs belong in the user's profile or topic folders, not in this repository
+gate-*/
+lit/

@@ -1,0 +1,12 @@
+{
+  "id": "https://openalex.org/W1234567890",
+  "display_name": "A Published Test Paper",
+  "publication_date": "2024-06-01",
+  "publication_year": 2024,
+  "doi": "https://doi.org/10.1234/test.5678",
+  "cited_by_count": 42,
+  "authorships": [{"author": {"display_name": "Grace Hopper"}}, {"author": {"display_name": "Edsger Dijkstra"}}],
+  "primary_location": {"source": {"display_name": "Test Conference"}, "landing_page_url": "https://example.org/paper"},
+  "locations": [{"landing_page_url": "https://example.org/paper"}, {"landing_page_url": "https://arxiv.org/abs/2406.00001v3"}],
+  "abstract_inverted_index": {"We": [0], "propose": [1], "a": [2], "test.": [3]}
+}
