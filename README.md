@@ -1,6 +1,6 @@
 # research-topic-skills
 
-[한국어](README.ko.md)
+[Korean](README.ko.md)
 
 Agent Skills that **find, adversarially vet, and hand off** research topics for one researcher.
 
@@ -124,16 +124,17 @@ profile: ~/research-profile (found)
 
 | level | Draws on | Phrases |
 |---|---|---|
-| high | mostly your own material: corpus, assets, ledger near-misses (80%) | "based on my code", "my paper", "follow-up", "내 코드", "후속" |
+| high | mostly your own material: corpus, assets, ledger near-misses (80%) | "based on my code", "my paper", "follow-up" |
 | medium (default) | half your material, half recent literature | (default) |
-| low | recent literature only, matched to your field and taste; the corpus is never opened | "exploratory", "broadly", "just the field", "탐색적", "분야만" |
+| low | recent literature only, matched to your field and taste; the corpus is never opened | "exploratory", "broadly", "just the field" |
 
 | depth | Goes until | Phrases |
 |---|---|---|
-| quick | numbered candidates with quick novelty signals; you pick what to vet | "quick", "candidates only", "빠르게", "후보만" |
+| quick | numbered candidates with quick novelty signals; you pick what to vet | "quick", "candidates only" |
 | standard (default) | the top candidate vetted by `novelty-gate` in light mode | (default) |
-| full | the top three vetted in full mode | "thorough", "in depth", "꼼꼼", "자세히" |
+| full | the top three vetted in full mode | "thorough", "in depth" |
 
+- **Other languages:** Korean phrases are recognised too; see the Korean README.
 - **Never affected by the level:** exclusions, budgets, the ground-truth policy, the ledger duplicate check, and the gate's standards.
 - **Explicit settings:** you can state any of them directly, for example `level: low`, `depth: full`, `field: …`, `cutoff 2026-01-31`, `out: ./scout`, or a path to your material.
 - **Profile defaults:** `scout_level`, `scout_depth` and `corpus_paths` in your profile.
