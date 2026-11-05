@@ -7,7 +7,7 @@
 | 스킬 | 이렇게 말하면 | 이걸 받습니다 |
 |---|---|---|
 | `topic-scout` | "연구 주제 찾아줘" | 내 분야(원하면 내 논문·코드까지)에서 뽑은 번호 붙은 후보 주제와, 1위 후보의 검증 결과 |
-| `novelty-gate` | "이거 누가 이미 했어?" | 판정(PASS, NEAR-MISS, NONE), 가장 가까운 선행 논문의 원문 인용과 링크, 아이디어를 반증할 가장 싼 실험 |
+| `novelty-gate` | "이거 누가 이미 했어?" | 판정(Recommended, Near miss, Rejected), 가장 가까운 선행 논문과 링크, 아이디어를 반증할 가장 싼 첫 실험 |
 | `research-brief` | "C1로 연구 계획 써줘" | 대조군, 데이터 분할, 결과 전에 고정한 판정 기준을 담은 실행용 연구 명세 |
 
 **topic-scout → novelty-gate → research-brief** 순서로 이어지며, 각 스킬을 따로 써도 됩니다.
@@ -56,12 +56,14 @@ direction: 의료영상 · cutoff: 2026-11-04 · out: ./scout-2026-11-04-medium
 여러 번 예측해 평균 내면 불확실도를 얻을 수 있다.
 ```
 
-답변 예시(요약):
+보고서 예시(요약, `report.ko.md`):
 
 ```
-판정: NONE. 탈락 (신규성 2/5)
-가장 가까운 선행: Gal & Ghahramani, "Dropout as a Bayesian Approximation" (2016),
-https://arxiv.org/abs/1506.02142 — 바로 이 방법을 제시함 (원문에서 확인)
+## C1 · Test-time dropout for uncertainty — Rejected
+novelty score 2/5 · feasibility score 5/5
+
+**Why.** Gal & Ghahramani (2016)가 이미 정확히 이 방법을 제시한다.
+논문 본문에서 확인했다.
 ```
 
 ### 3. 결과에서 이어가기
@@ -71,13 +73,21 @@ C3도 검증해줘
 C1로 연구 계획 써줘
 ```
 
+## 결과물
+
+실행할 때마다 폴더 하나가 생깁니다.
+- `report.md`: 사람이 읽는 짧은 보고서입니다. 판정, 이유, 다음 할 일만 쉬운 영어로 담습니다.
+- `details.md`: 전체 감사 기록입니다. 인용, 검색 범위, 설정이 들어 있습니다. 판정을 확인하고 싶을 때 봅니다.
+
+보고서를 한국어로도 받으려면 "한국어로도"(또는 `lang: ko`)라고 말하세요. 그러면 `report.ko.md`도 생깁니다. 산문만 번역하고 전문용어는 영어로 둡니다. 매번 받으려면 프로필에 `"extra_report_language": "ko"`를 넣으세요.
+
 ## 내 프로필
 
 처음 쓸 때 네 가지만 묻습니다.
 1. 분야
 2. 피하고 싶은 주제
 3. 대략의 계산 예산
-4. 보고 언어
+4. 보고서를 다른 언어로도 받을지(기본은 영어)
 
 답은 `~/research-profile/`에 저장됩니다. 그 폴더의 `profile.md`를 고쳐 취향을 적거나 기본값을 바꿀 수 있습니다. 이 폴더는 비공개로 두세요.
 

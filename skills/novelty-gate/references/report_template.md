@@ -1,91 +1,56 @@
-# Report template (novelty gate)
+# report.md template (novelty gate, human report)
 
-Write the report in the profile's `output_language`. Keep the section order. Prose can be concise; the evidence cannot be.
+Follow [report_style.md](report_style.md): short sentences, the fixed term list, no internal codes. Write it in English. If an extra report language is set, also write `report.<code>.md` with the same structure, translating the prose only.
+
+Put one block per candidate. For a single idea that is the whole report. Keep the order.
 
 ```markdown
-# <short title> — novelty gate (<YYYY-MM-DD>)
+# Novelty check: <short title>
 
-- Literature cutoff: <date>. Input: <proposal path or summary>.
-- Done / not done: literature and source review only. No experiments; no data or weight downloads (paper PDFs only).
-- **Verdict: PASS | NONE** (one sentence why)
-- Evidence tags: FT full text verified · ABS abstract only · SEC secondary/unverified · FAIL access failure
+<YYYY-MM-DD> · cutoff <YYYY-MM-DD> · <light | full> check · details: details.md
 
-## 1. Candidates (novelty and feasibility scored separately)
-| id | candidate (one line) | novelty | feasibility | closest prior | status / reason |
-|---|---|---:|---:|---|---|
+## Result
+<One sentence. For example: "No idea is recommended. One idea is a near miss.">
 
-## 2. Why this verdict
-The common reasons: landscape, theory-forced points, crowding by recent work. 3–6 bullets.
+## <id> · <short title> — <Recommended | Near miss | Rejected>
+novelty score <n>/5 · feasibility score <n>/5
 
-## 3. Candidate details
-Full detail for PASS and NEAR-MISS. Three lines for KILLED and DROPPED.
+**Idea.** <One or two sentences in plain words.>
 
-For a KILLED candidate, give the killer evidence and, if one exists, a one-line revival condition: what would have to be different. Do not design a B0 for it.
+**Why.** <Two or three sentences. Name the closest paper and say what it already does and what it does not do.>
 
-### <id> — <title>
-- Question and atomic claims; reduced computation
-- (a) Closest priors: per prior, URL, tag, exact quote, location, what overlaps, what does not
-- Classical-equivalence and theory-forced checks (runner derivations labeled)
-- (b) Cheap baselines: native · common default · simplest key information · equal compute
-- (c) Failing gate (if not PASS): which gate and why, in one sentence
-- (d) B0: question, oracle, endpoint, minimum effect × margin, known-good, frozen thresholds (file + sha256), PROMOTE / KILLED / INCONCLUSIVE / BLOCKED conditions, cost vs budget
-- Feasibility: data, weights and overlap, licenses per asset, downloads, ground-truth honesty
+**Closest papers**
+1. <Title> (<first author> et al., <year>). <URL>
+   <It already does X. It does not do Y.> <How sure: confirmed in the full text | seen in the abstract only>
+2. ...
 
-## 4. Search coverage
-claims × families A–F (done / failed: reason / n/a: reason)
+**First test** (only for Recommended and Near miss)
+<What to run, in one or two sentences.> Cost: <about N GPU-hours, N GB>.
+Continue if <result>. Stop if <result>.
 
-## 5. Lessons applied
-One line per lesson from lessons.md: applied how, result
+**Baselines to beat:** <three or four short names>
 
-## 6. Access failures and unread items
-Not evidence of novelty.
-
-## 7. Decision for the user
-What to approve, close or change. Smallest next step.
+## Next step
+- Say: "<the follow-up the user can type>"
 ```
 
-## gate-summary block
+Example of one candidate block:
 
-Put it at the very end of the report, inside a fenced block whose info string is `json gate-summary`. `scripts/report_lint.py gate` validates it, and `scripts/ledger.py add --from-summary` turns it into ledger entries.
+```markdown
+## C1 · Label smoothing vs temperature scaling under distribution shift — Near miss
+novelty score 3/5 · feasibility score 5/5
 
-```json gate-summary
-{
-  "schema": "novelty-gate/v1",
-  "date": "2026-01-31",
-  "literature_cutoff": "2026-01-31",
-  "entry_threshold": 4,
-  "verdict": "none",
-  "candidates": [
-    {
-      "id": "C1",
-      "title": "Short title",
-      "claim": "One-sentence claim.",
-      "novelty": 3,
-      "feasibility": 5,
-      "status": "near-miss",
-      "killer_type": "none",
-      "closest_prior": [
-        {"title": "Paper title", "url": "https://arxiv.org/abs/0000.00000", "tag": "FT", "evidence": "E1", "overlap": "what it already shows"}
-      ],
-      "baselines": {"native": "...", "common_default": "...", "simplest_key_info": "...", "equal_compute": "..."},
-      "b0": {"cost": "≤ 8 GPU-h, 2 GB", "primary_endpoint": "...", "promote_if": "...", "kill_if": "...",
-             "inconclusive_if": "...", "blocked_if": "...", "known_good": "...", "thresholds_file": "thresholds.json"},
-      "failing_gate": "novelty 3 < 4: scale-up of known evaluation; promote only if B0 shows ..."
-    }
-  ],
-  "coverage": [
-    {"claim": "C1.a", "A": "done", "B": "done", "C": "done", "D": "done", "E": "done", "F": "done"}
-  ]
-}
+**Idea.** Train with label smoothing and compare its calibration with temperature scaling on shifted test data.
+
+**Why.** The closest paper shows that label smoothing improves calibration on in-distribution data. It does not compare the two methods under shift. We did not yet search all robustness benchmarks.
+
+**Closest papers**
+1. When Does Label Smoothing Help? (Müller et al., 2019). https://arxiv.org/abs/1906.02629
+   It already shows better calibration in distribution. It does not test shifted data. Seen in the abstract only.
+
+**First test**
+Train a small CNN on CIFAR-10 with and without label smoothing. Measure calibration error on CIFAR-10-C. Cost: about 2 GPU-hours, 3 GB download.
+Continue if label smoothing beats temperature scaling by at least 1 point of calibration error. Stop if not.
+
+**Baselines to beat:** temperature scaling, plain training, focal loss
 ```
-
-## Field rules
-
-- `status`:
-  - `pass`: novelty ≥ threshold, feasibility ≥ 3, and at least one closest prior tagged FT.
-  - `near-miss`: usually novelty = threshold − 1.
-  - `killed`: needs `killer_type` of `paper` (with a named prior), or `classical-equivalence` / `theory-forced` (with a `derivation` field).
-  - `dropped`: needs an objective `killer_type` (`budget`, `profile`, `ledger`, `data`).
-- `baselines` and `b0` are required for `pass` and `near-miss`.
-- `verdict` is `pass` if any candidate passes, else `none`.
-- Every URL in `closest_prior` should also appear in the report body.

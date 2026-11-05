@@ -5,14 +5,14 @@ If no profile directory is found (see [data_contract.md](data_contract.md)), do 
 1. Your research areas, most preferred first (one line).
 2. Areas you never want proposed (one line, or "none").
 3. A rough compute and download budget for a first experiment, for example "about 10 GPU-hours and 10 GB", plus your hardware.
-4. The language for reports.
+4. Whether you also want the human report in another language (reports are in English by default).
 
 Then create the profile and continue with the original request:
 
 ```bash
 python3 <this-skill-dir>/scripts/profile_init.py --dir ~/research-profile \
   --interests "area one; area two" --exclusions "area x" \
-  --gpu-hours 10 --download-gb 10 --hardware "1 GPU, 24 GB" --language en
+  --gpu-hours 10 --download-gb 10 --hardware "1 GPU, 24 GB" --extra-language ko
 ```
 
 - It writes `profile.md` (with a `json profile` block), an empty `ledger.jsonl`, a starter `lessons.md` and an `assets.md` header.

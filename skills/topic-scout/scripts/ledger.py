@@ -10,8 +10,8 @@ Subcommands
   check LEDGER --claim TEXT [--top K] [--min SCORE]
       Near-duplicate search of a new idea against past topics (word Jaccard + character
       trigram cosine; works for any language). Shows verdicts and named killers.
-  add LEDGER (--json OBJ | --file ENTRY.json | --from-summary REPORT.md) [--dry-run]
-      --from-summary turns the gate-summary JSON block of a gate report into entries.
+  add LEDGER (--json OBJ | --file ENTRY.json | --from-summary OUT_DIR) [--dry-run]
+      --from-summary reads OUT_DIR/gate_summary.json (or an older report with a gate-summary block).
   update LEDGER --id ID --set key=value [--set key=value ...]
       Values are parsed as JSON when possible (numbers, lists), otherwise kept as strings.
 """
@@ -19,6 +19,7 @@ import argparse
 import datetime as dt
 import json
 import math
+import os
 import re
 import sys
 from collections import Counter
@@ -97,12 +98,17 @@ def entry_text(e):
     return " ".join([e.get("title", ""), e.get("claim", ""), " ".join(e.get("tags") or [])])
 
 
-def extract_summary(report_path):
-    with open(report_path, encoding="utf-8") as fh:
+def extract_summary(path):
+    """Accept an output folder, gate_summary.json, or a markdown file with a json gate-summary block."""
+    if os.path.isdir(path):
+        path = os.path.join(path, "gate_summary.json")
+    with open(path, encoding="utf-8") as fh:
         text = fh.read()
+    if path.endswith(".json"):
+        return json.loads(text)
     m = re.search(r"```json\s+gate-summary\s*\n(.*?)```", text, re.S)
     if not m:
-        raise SystemExit("no ```json gate-summary block found in the report")
+        raise SystemExit("no gate_summary.json or ```json gate-summary block found")
     return json.loads(m.group(1))
 
 

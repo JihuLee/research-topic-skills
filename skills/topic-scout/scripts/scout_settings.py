@@ -15,6 +15,7 @@ Resolved values
   direction  field or direction named in the request, if any
   cutoff     literature cutoff date
   out_dir    output directory
+  extra_language  extra human-report language (ISO 639-1) besides English, if any
   profile    profile directory and whether it was found
 
 Request phrases that are recognised (English and Korean), for example:
@@ -25,6 +26,7 @@ Request phrases that are recognised (English and Korean), for example:
   direction    : "field: medical imaging", "분야는 의료영상"
   cutoff       : "cutoff 2026-01-31", "기준일 2026-01-31"
   out_dir      : "out: ./my-scout"
+  extra lang   : "lang: ko", "also in Korean", "Korean report", "한국어로도", "한국어 보고서"
   corpus paths : any existing path in the request, such as ./my-project or ~/papers
 """
 import argparse
@@ -52,6 +54,27 @@ DEPTH_WORDS = {
 LEVEL_ALIASES = {"high": "high", "medium": "medium", "mid": "medium", "low": "low",
                  "높": "high", "중": "medium", "중간": "medium", "낮": "low"}
 RESEARCH_EXT = {".tex", ".py", ".ipynb", ".pdf", ".bib"}
+LANG_NAMES = {"korean": "ko", "한국어": "ko", "japanese": "ja", "일본어": "ja", "chinese": "zh", "중국어": "zh",
+              "german": "de", "french": "fr", "spanish": "es", "english": "en", "영어": "en"}
+
+
+def resolve_language(req, prof, notes):
+    m = re.search(r"(?:\blang(?:uage)?|언어)\s*[:=]\s*([a-z]{2})\b", req, re.I)
+    if m:
+        code = m.group(1).lower()
+        return (None if code == "en" else code), "request (explicit)"
+    low = req.lower()
+    for name, code in LANG_NAMES.items():
+        if re.search(r"(?:also in|in)\s+" + name + r"\b|" + name + r"\s+report|" + name + r"\s*(?:로도|보고서)", low):
+            return (None if code == "en" else code), "request (phrase)"
+    v = prof.get("extra_report_language")
+    if v:
+        return (None if v == "en" else v), "profile"
+    legacy = prof.get("output_language")
+    if legacy and legacy != "en":
+        notes.append("profile key output_language is read as extra_report_language")
+        return legacy, "profile (output_language)"
+    return None, "default (English only)"
 
 
 def find_profile(explicit, cwd, env):
@@ -190,6 +213,7 @@ def resolve(request, profile=None, cwd=None, today=None, env=None):
     m = re.search(r"(?:\b(?:field|area|direction)\s*(?:is|:|=)\s*|분야\s*(?:는|은|:|=)\s*)([^,.;\n]+)", request, re.I)
     direction = m.group(1).strip() if m else None
     corpus, corsrc = resolve_corpus(level, request, prof, cwd, notes, out_dir)
+    lang, langsrc = resolve_language(request, prof, notes)
     if level != "low" and not corpus and prof.get("interests"):
         notes.append("without a corpus, own-material candidates come from the profile prose and the ledger only")
     return {
@@ -202,6 +226,7 @@ def resolve(request, profile=None, cwd=None, today=None, env=None):
         "direction": direction,
         "cutoff": {"value": cutoff, "source": csrc},
         "out_dir": {"value": out_dir, "source": osrc},
+        "extra_language": {"value": lang, "source": langsrc},
         "notes": notes,
     }
 
@@ -214,6 +239,8 @@ def card(s):
            else " · gate: none (the user picks what to gate)"),
         "corpus: " + (", ".join(c["paths"]) if c["paths"] else "-") + f" ({c['source']})",
         f"direction: {s['direction'] or '-'} · cutoff: {s['cutoff']['value']} · out: {s['out_dir']['value']}",
+        "reports: en" + (f" + {s['extra_language']['value']}" if s["extra_language"]["value"] else "")
+        + f" ({s['extra_language']['source']})",
         f"profile: {s['profile']['dir'] or '-'} ({s['profile']['status']})",
     ]
     lines += [f"note: {n}" for n in s["notes"]]

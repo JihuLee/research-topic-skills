@@ -39,9 +39,9 @@ Everything beyond the [README](../README.md): how the skills decide, the profile
 
 | Skill | What it does | Main outputs |
 |---|---|---|
-| `novelty-gate` | Adversarially reviews an idea or proposal. It breaks the idea into claims and searches query families A–F for prior work. It verifies decisive quotes in full text and checks for classical equivalents and theory-forced results. It scores novelty and feasibility separately and designs a B0. | `gate_report.md`, `evidence.jsonl`, `thresholds.json` |
-| `topic-scout` | Generates numbered candidates at a chosen level (high: from the researcher's own papers, code and notes; low: exploring recent literature in their field) and depth (quick, standard, full). It drops ideas only for objective reasons, then sends a shortlist to `novelty-gate`. | `candidates.jsonl`, `scout_report.md`, `corpus_manifest.md` or `landscape.md` |
-| `research-brief` | Turns a passing candidate into an execution-ready specification for a human team or an autonomous research agent. It uses the researcher's own template if one is configured, inlines the literature facts, and freezes the threshold hash. | `brief.md`, `thresholds.json.sha256` |
+| `novelty-gate` | Adversarially reviews an idea or proposal. It breaks the idea into claims and searches query families A–F for prior work. It verifies decisive quotes in full text and checks for classical equivalents and theory-forced results. It scores novelty and feasibility separately and designs a B0. | `report.md`, `details.md`, `gate_summary.json`, `evidence.jsonl`, `thresholds.json` |
+| `topic-scout` | Generates numbered candidates at a chosen level (high: from the researcher's own papers, code and notes; low: exploring recent literature in their field) and depth (quick, standard, full). It drops ideas only for objective reasons, then sends a shortlist to `novelty-gate`. | `report.md`, `details.md`, `candidates.jsonl`, `corpus_manifest.md` or `landscape.md` |
+| `research-brief` | Turns a passing candidate into an execution-ready specification for a human team or an autonomous research agent. It uses the researcher's own template if one is configured, inlines the literature facts, and freezes the threshold hash. | `brief.md`, `report.md`, `thresholds.json.sha256` |
 
 ```
 corpus + profile + ledger ─► topic-scout ─► shortlist ─► novelty-gate ─► PASS ─► research-brief
@@ -131,7 +131,7 @@ $EDITOR ~/research-profile/profile.md                                        # e
 
 | Key | Type | Default | Used for |
 |---|---|---|---|
-| `output_language` | string (`en`, `ko`, …) | language of the request | report language |
+| `extra_report_language` | ISO 639-1 code (`ko`, `ja`, …) or `null` | `null` (English only) | also write `report.<code>.md`; prose is translated, technical terms stay in English |
 | `interests` | list of strings, ranked | — | generation lenses, ranking |
 | `preferred_contributions` | list (`method`, `benchmark`, `analysis`, `theory`, `dataset`) | `method`, `benchmark`, `analysis` | ranking |
 | `target_venues` | list | — | framing and review criteria |
@@ -166,7 +166,7 @@ One JSON object per line. Validate with `scripts/ledger.py validate`. Write `tit
 | `tags`, `report`, `notes` | | list / path or URL / string |
 
 ```json
-{"id": "2026-02-03-T2", "date": "2026-02-03", "title": "...", "claim": "...", "verdict": "near-miss", "stage": "gate", "novelty": 3, "feasibility": 5, "killers": [], "near_miss_b0": "...", "tags": ["uncertainty"], "report": "gate-.../gate_report.md"}
+{"id": "2026-02-03-T2", "date": "2026-02-03", "title": "...", "claim": "...", "verdict": "near-miss", "stage": "gate", "novelty": 3, "feasibility": 5, "killers": [], "near_miss_b0": "...", "tags": ["uncertainty"], "report": "gate-.../"}
 ```
 
 The ledger has two jobs:
@@ -175,7 +175,7 @@ The ledger has two jobs:
 
 ### `lessons.md`
 
-Write each lesson as something checkable, for example "Check: the native, no-intervention pipeline is a registered baseline". `novelty-gate` applies every item as a checklist and reports the results in section 5 of its report. General starters are in [`templates/lessons.md`](../templates/lessons.md).
+Write each lesson as something checkable, for example "Check: the native, no-intervention pipeline is a registered baseline". `novelty-gate` applies every item as a checklist and reports the results in section 5 of `details.md`. General starters are in [`templates/lessons.md`](../templates/lessons.md).
 
 ### `assets.md`
 
@@ -193,15 +193,35 @@ Any files: papers (`.tex`, `.pdf`, `.md`), code repositories, notes, past gate r
 
 ```
 <out_dir>/
-├── gate_report.md      # human-readable report ending with a gate-summary JSON block
+├── report.md           # human report: short, plain English (ASD-STE100 style)
+├── report.<code>.md    # optional: the same report in an extra language, e.g. report.ko.md
+├── details.md          # audit record: evidence, coverage, settings (always English)
+├── gate_summary.json   # novelty-gate: machine-readable summary (schema novelty-gate/v1)
 ├── evidence.jsonl      # evidence log: claim, URL, exact quote, location, tag
+├── candidates.jsonl    # topic-scout: numbered candidates
 ├── notes/              # research notes
 ├── lit/                # downloaded PDFs, extracted text, saved abstracts (usually not shared)
 ├── thresholds.json     # frozen B0 thresholds, with .sha256 and .amendments.jsonl
-├── corpus_manifest.md  # topic-scout
-├── scout_report.md     # topic-scout
+├── corpus_manifest.md  # topic-scout (or landscape.md at level low)
 └── brief.md            # research-brief
 ```
+
+**Human report (`report.md`)**
+
+- It gives the decision, the reason and the next action. It is about one screen per candidate.
+- Rules are in [`report_style.md`](../shared/references/report_style.md): one idea per sentence, active voice, no internal codes (evidence ids, evidence tags, workflow words).
+- It uses fixed verdict terms:
+
+| Term | Internal status |
+|---|---|
+| Recommended | PASS |
+| Near miss | NEAR-MISS |
+| Rejected | KILLED |
+| Removed | DROPPED |
+| Not checked | not sent to the novelty check yet |
+
+- **Language.** English by default. Set `extra_report_language` in the profile, or say "also in Korean" or `lang: ko` in the request. The skill then also writes `report.ko.md`. Only the prose is translated; technical terms, verdict terms, names, titles, commands and numbers stay in English. `details.md` and the JSON files are always in English.
+- `report_lint.py` checks the human reports: length, internal codes, and that every candidate id and verdict term appears.
 
 **Evidence tags**
 
@@ -223,9 +243,9 @@ Decisive claims (kill, pass, score) need FT.
   - **KILLED:** a named paper, a classical equivalence, or a theory-forced result.
   - **DROPPED:** removed by the scout for an objective reason (exclusion, budget, data, ledger).
 
-**`gate-summary` block**
+**`gate_summary.json`**
 
-The report ends with a code block whose info string is `json gate-summary`. The schema is `novelty-gate/v1`; see the example in [`report_template.md`](../skills/novelty-gate/references/report_template.md).
+The schema is `novelty-gate/v1`; see the example in [`details_template.md`](../skills/novelty-gate/references/details_template.md). Older single-file reports that end with a `json gate-summary` code block are still accepted by `report_lint.py` and `ledger.py`.
 - Required keys: `date`, `literature_cutoff`, `entry_threshold`, `verdict` (`pass` / `none`), `candidates[]`, and `coverage[]` (claims × query families A–F).
 - Each candidate has `id`, `title`, `claim`, `novelty`, `feasibility`, `status`, `killer_type`, and `closest_prior[]` (`title`, `url`, `tag`, `evidence`).
 - PASS and NEAR-MISS candidates also need:
@@ -242,7 +262,7 @@ All scripts use only the Python standard library.
 | `guard.py` | all | Blocks use inside autonomous pipelines (exit code 3) |
 | `lit_fetch.py` | gate, scout | Literature commands (details below) |
 | `quote_check.py` | gate, scout | Checks that each FT quote in `evidence.jsonl` occurs in the cited text, after normalising ligatures, line-break hyphens and whitespace |
-| `report_lint.py` | gate, brief | `gate`: summary schema, kill evidence, four baselines, B0 and coverage. `brief`: unfilled fields, placeholders, literature URL count, threshold hash |
+| `report_lint.py` | all | `gate OUT_DIR`: summary schema, kill evidence, four baselines, B0, coverage, and the human reports. `scout OUT_DIR`: candidate records and the human reports. `human REPORT.md`: one human report. `brief`: unfilled fields, placeholders, literature URL count, threshold hash |
 | `ledger.py` | all | `validate`, `list`, `check` (near-duplicates), `add` (including `--from-summary`), `update` |
 | `freeze.py` | gate, brief | `template`, `freeze` (sha256 of canonical JSON), `verify`, `amend --reason` (logs every change; after results, amendments may only tighten) |
 | `corpus_scan.py` | scout | Indexes leads in a corpus |
@@ -332,6 +352,11 @@ python3 tools/validate_skills.py                          # Agent Skills spec, p
 
 ## Changelog
 
+- **0.3.0**
+  - Each run writes a short human report (`report.md`) and a separate audit record (`details.md`, plus `gate_summary.json` for the novelty gate).
+  - The human report is in English by default. An optional extra language (`extra_report_language`, or "also in Korean") adds `report.<code>.md`; only the prose is translated.
+  - `report_lint.py` gains `scout` and `human` modes and checks human reports for internal codes and length.
+  - The profile key `output_language` is replaced by `extra_report_language`. The old key is still read.
 - **0.2.0**
   - topic-scout gains level (high/medium/low) and depth (quick/standard/full), a settings card, numbered candidates with follow-ups, and first-use onboarding.
   - novelty-gate gains a light mode.

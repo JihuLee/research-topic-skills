@@ -3,7 +3,7 @@ name: topic-scout
 description: Finds research topics tailored to one researcher. A level sets how much it draws on their own material (high = papers, code, notes and past reviews; low = only their field and taste, exploring recent literature), and a depth sets how far it goes (quick = candidates only; standard = vet the top one; full = vet the top three). Generates candidates through explicit lenses, drops only objectively infeasible or already-killed ideas (via a ledger), and sends a shortlist through the novelty gate. Returns numbered candidates, vetted topics and near-misses with the cheapest evidence that would revive them. Use it whenever someone asks to find, brainstorm, scout or propose research topics, follow-ups to their work, or "what should I work on next", including 연구 주제 탐색, 주제 찾아줘, 탐색적으로, 내 코드 기반으로, 후속 연구, 다음 연구 뭐 하지. For interactive use with a researcher, not for autonomous research pipelines.
 compatibility: Claude Code or Codex, used together with the novelty-gate skill. Needs web access. Python 3.8+ stdlib scripts; pymupdf optional for scanning PDFs.
 metadata:
-  version: "0.2"
+  version: "0.3"
 ---
 
 # Topic scout
@@ -100,28 +100,44 @@ Rank the survivors by:
 Candidates in one area can share a gate run. The gate writes its own report, evidence and ledger proposals.
 
 ### 6. Report
-Write `<out>/scout_report.md` in the profile's output language:
-1. **Settings:** the card from the quick start, plus the actual source mix (for example "7 landscape, 5 corpus").
-2. **Candidates table:** every candidate with id, one line, lens, source, status, novelty and feasibility if gated, and the reason.
-3. **Passed topics, if any.**
-4. **If a gate ran and nothing passed:** up to 3 near-misses, each with
-   - (a) the direct prior,
-   - (b) the cheap baselines,
-   - (c) the gate it failed,
-   - (d) the minimal B0 evidence that would flip it.
+Write two files. The audit record keeps everything; the human report keeps only what a reader needs.
 
-   **At depth quick**, no gate runs. Give instead "top candidates before the gate (not verdicts)": the 3 highest-ranked, each with its closest related work and suggested baselines.
-5. **Dropped ideas with reasons.** Dead ends save the next run's time.
-6. **Next steps:** one or two ready-to-say follow-ups, for example "gate C3" (novelty-gate on C3), "brief C1" (research-brief on a passed candidate), or "level: low로 다시".
+**`<out>/details.md`** (audit record, English):
+1. **Settings:** the card, plus the actual source mix (for example "7 landscape, 5 corpus") and the query count.
+2. **Candidates table:** every candidate with id, one line, lens, source, status, rank, novelty and feasibility if gated, and the reason.
+3. **Dropped ideas with reasons.** Dead ends save the next run's time.
+4. **Evidence notes:** related work per candidate, with tags.
 
-In the chat, show only a 5-line summary, the candidates table and the file paths.
+**`<out>/report.md`** (human report, English): follow [references/report_style.md](references/report_style.md). Plain words, short sentences, the fixed terms (Recommended, Near miss, Rejected, Removed, Not checked), no internal codes. In this order:
+1. **Result:** one or two sentences.
+2. **One short card per top candidate** (the top 3, plus any that were checked):
+   - title and verdict term;
+   - Idea;
+   - Why it looks promising or weak;
+   - the closest paper with its link;
+   - the first test with its cost;
+   - the next thing to say.
+3. **Other candidates:** one line each.
+4. **Next step:** one or two ready-to-say follow-ups.
+
+If an extra report language is set (the settings card shows `reports: en + <code>`), also write `report.<code>.md`. Translate the prose only; keep the technical terms in English.
+
+Then run `python3 scripts/report_lint.py scout <out>` and fix every ERROR.
+
+What each card must carry:
+- **Near miss** (checked): the closest paper, the baselines to beat, the bar it missed, and the first test that could change the verdict.
+- **Not checked** (depth quick, or below the top N): the closest related paper found so far and the baselines to beat. Say plainly that it has not been checked yet.
+- **Recommended:** the closest paper and why the idea still differs, the first test, and the suggestion to write a study plan.
+- **Next-step phrases:** for example "check C3" (novelty-gate on C3), "write the study plan for C1" (research-brief), or "again at level low".
+
+In the chat, show only a short summary of `report.md` in the user's language and the file paths.
 
 Do not append to the ledger yourself. The gate proposes ledger entries for gated candidates, and the user confirms them. For dropped ideas, offer optional `dropped` entries.
 
 ## Follow-up requests
-When the user refers to a candidate id ("gate C3", "C1로 명세 써줘"), read `<out>/candidates.jsonl` from the most recent scout run in the working directory, or the run the user names. Then:
-- **gate C3:** run novelty-gate on that record, in light mode unless the user asks for full.
-- **brief C1:** run research-brief on that record's gate report. If the candidate has not been gated, run the gate first.
+When the user refers to a candidate id ("check C3", "gate C3", "C3도 검증해줘", "write the study plan for C1", "C1로 연구 계획 써줘"), read `<out>/candidates.jsonl` from the most recent scout run in the working directory, or the run the user names. Then:
+- **check / gate C3:** run novelty-gate on that record, in light mode unless the user asks for full.
+- **study plan for C1:** run research-brief on that record's gate report. If the candidate has not been gated, run the gate first.
 
 ## Why this order
 - Execution studies of LLM-generated research ideas found that they look more novel before execution than after.

@@ -3,7 +3,7 @@ name: research-brief
 description: Turns a research candidate that passed a novelty gate into an execution-ready specification for a human team or an autonomous research agent. Covers the question, a falsifiable hypothesis, baselines with code, weights and licenses, dataset splits with leakage rules, one primary endpoint with confidence intervals, pre-registered thresholds frozen with a hash, B0/validity/sealed-evaluation gates, compute limits, and an inline literature section for executors without web access. Fills the user's own template when the profile names one. Use it whenever someone asks to write up, hand off, or prepare a research input, spec, brief, study plan or pre-registration for a vetted topic, including 연구 입력서, 실행 명세, 연구 계획서, 제안서 작성, 사전 등록. For interactive use with a researcher, not for autonomous research pipelines.
 compatibility: Claude Code or Codex. Python 3.8+ stdlib scripts.
 metadata:
-  version: "0.2"
+  version: "0.3"
 ---
 
 # Research brief
@@ -20,7 +20,7 @@ Use is allowed when a researcher asked for it, directly or through an agent work
 First run `python3 <this-skill-dir>/scripts/guard.py`. If it exits non-zero, stop and report its message. Also stop without doing anything if you are running as a stage of such a pipeline rather than for a person's request.
 
 ## Inputs
-- **A gate report** (`gate_report.md` and `evidence.jsonl` from the novelty-gate skill) with a PASS candidate. If the candidate is not PASS, ask the user to confirm an override and record that override in the brief.
+- **A gate output folder** from the novelty-gate skill (`details.md`, `gate_summary.json`, `evidence.jsonl`; older runs have one `gate_report.md`) with a PASS candidate. If the candidate is not PASS, ask the user to confirm an override and record that override in the brief.
 - **Profile** ([references/data_contract.md](references/data_contract.md)):
   - budgets;
   - ground-truth policy;
@@ -40,8 +40,16 @@ First run `python3 <this-skill-dir>/scripts/guard.py`. If it exits non-zero, sto
 6. **Content check.** If the profile sets `content_check_command`, run it on the brief and fix what it finds. Never copy matched secret patterns into the brief or the chat.
 7. **Lint.** Run `python3 scripts/report_lint.py brief <brief.md> --thresholds thresholds.json`. With a custom template, put a `<!-- section:ID -->` marker before each section and pass the ids via `--sections`; without markers only the placeholder and URL checks run. Fix every ERROR.
 8. **Update the ledger.** Run `python3 scripts/ledger.py update <ledger> --id <id> --set stage=brief` (only if the entry exists).
-9. **Present.** Give the path, a 5-line summary, and the open items that need the user's decision.
+9. **Human report.** Write `report.md` in English, following [references/report_style.md](references/report_style.md). Keep it short:
+   - what the study tests, in two sentences;
+   - the first test, and when to stop or continue;
+   - the cost against the budget;
+   - the open items that need the user's decision.
+
+   If an extra report language is set (profile `extra_report_language`, or a request such as "also in Korean"), also write `report.<code>.md`. Translate the prose only; keep the technical terms in English. Check both files with `python3 scripts/report_lint.py human <file>`.
+10. **Present.** In the chat, give the short version of `report.md` in the user's language and the file paths.
 
 ## Output
-- `brief.md` (in the profile's output language)
+- `brief.md`: the specification for the executor. In English, unless the user's `handoff_template` is in another language; then follow the template.
+- `report.md`: the short human report, in English, plus `report.<code>.md` if an extra language is set.
 - `thresholds.json` and `thresholds.json.sha256`

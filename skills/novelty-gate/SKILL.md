@@ -3,7 +3,7 @@ name: novelty-gate
 description: Adversarial novelty-and-feasibility gate for a research idea, topic or proposal, run before any experiment. Breaks the idea into claims; hunts the closest recent prior work (same input contract, same claim, same computation under classical names, same benchmark, recent-months sweep, forward citations); verifies decisive quotes in full text; checks for classical equivalents and theory-forced results; scores novelty and feasibility 1-5 separately; and designs the cheapest falsifying pre-experiment (B0) with four baselines and frozen thresholds. Returns PASS, NEAR-MISS or NONE backed by named evidence. Use it whenever someone wants to vet, desk-review, novelty-check or prior-art-check a research idea, asks "has this been done", wants a go/no-go or kill test before implementing, or says G0, 신규성 검토, 선행 연구 확인, 연구 주제 검증, 제안서 심사, even for a rough pasted idea. For interactive use with a researcher, not for autonomous research pipelines.
 compatibility: Claude Code or Codex. Needs web access for literature search. Python 3.8+ stdlib scripts; pymupdf or pdftotext optional for PDF text.
 metadata:
-  version: "0.2"
+  version: "0.3"
 ---
 
 # Novelty gate
@@ -110,17 +110,25 @@ Follow [references/b0_design.md](references/b0_design.md):
 
 For a NEAR-MISS, the B0 is the minimal evidence that would lift it to the threshold. State that evidence precisely.
 
-### 9. Write the report
-- Use [references/report_template.md](references/report_template.md) in the profile's output language. End with the `gate-summary` JSON block.
-- For KILLED candidates, give the evidence and a one-line revival condition. Do not design a B0 for them.
-- Run `python3 scripts/report_lint.py gate <out>/gate_report.md --evidence <out>/evidence.jsonl` and fix every ERROR.
+### 9. Write the outputs
+Write three things. People read the first; the other two keep the verdict checkable.
+1. **`details.md`, the audit record.** Always in English. Follow [references/details_template.md](references/details_template.md): claims, evidence with tags and quotes, checks, baselines, the full B0, coverage, lessons and access failures. For KILLED candidates, give the evidence and a one-line revival condition, and do not design a B0.
+2. **`gate_summary.json`, the machine-readable summary.** Schema in `details_template.md`.
+3. **`report.md`, the human report.** In English, following [references/report_template.md](references/report_template.md) and [references/report_style.md](references/report_style.md):
+   - plain words and short sentences;
+   - the fixed verdict terms (Recommended, Near miss, Rejected);
+   - no evidence ids or tags.
+
+   If an extra report language is set (profile `extra_report_language`, or a request such as "also in Korean"), also write `report.<code>.md`. Translate the prose only; keep the technical terms in English.
+
+Then run `python3 scripts/report_lint.py gate <out>` and fix every ERROR. It checks all three outputs and evidence.jsonl.
 
 ### 10. Close the loop
-- Show the proposed ledger entries with `python3 scripts/ledger.py add <ledger> --from-summary <out>/gate_report.md --dry-run`. Append them once the user confirms the verdict. If the user asked for unattended operation, append them with verdict `pending` instead.
-- Tell the user:
+- Show the proposed ledger entries with `python3 scripts/ledger.py add <ledger> --from-summary <out> --dry-run`. Append them once the user confirms the verdict. If the user asked for unattended operation, append them with verdict `pending` instead.
+- In the chat, give the short version of `report.md` in the user's language:
   - the verdict;
-  - the top reasons, with links;
-  - what would flip each near-miss;
+  - the main reason, with the closest paper's link;
+  - the first test for a near miss;
   - where the files are.
 - Ask before running any B0.
 
@@ -133,7 +141,9 @@ For a NEAR-MISS, the B0 is the minimal evidence that would lift it to the thresh
 - **One-model tunnel vision.** If a second model family is available (cross-model review), it is a good adversary for step 6. Optional.
 
 ## Output files
-- `gate_report.md`
+- `report.md` (human report, English) and optionally `report.<code>.md`
+- `details.md` (audit record, English)
+- `gate_summary.json`
 - `evidence.jsonl`
 - `notes/`
 - `lit/` (PDFs and extracted text; usually excluded from sharing)

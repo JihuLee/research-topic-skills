@@ -216,6 +216,66 @@ class TestReportLint(unittest.TestCase):
             shutil.rmtree(d)
 
 
+class TestHumanReports(unittest.TestCase):
+    """Folder layout: report.md (human), details.md (audit), gate_summary.json."""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        text = read(os.path.join(FIX, "good_gate_report.md"))
+        summary = json.loads(re.search(r"```json\s+gate-summary\s*\n(.*?)```", text, re.S).group(1))
+        dump(summary, os.path.join(self.d, "gate_summary.json"))
+        write(os.path.join(self.d, "details.md"), text.split("```json")[0])
+        self.good = ("# Novelty check: calibration ideas\n\n## Result\nNo idea is recommended. One idea is a near miss.\n\n"
+                     "## C1 · Label smoothing under shift — Near miss\nnovelty score 3/5 · feasibility score 5/5\n\n"
+                     "**Why.** The closest paper tests calibration in distribution only. It does not test shift.\n\n"
+                     "## C2 · Temperature scaling and AUROC — Rejected\n"
+                     "**Why.** AUROC depends only on the ranking of scores. One monotone transform keeps the ranking.\n\n"
+                     "## Next step\n- Say: \"check C1 in full\"\n")
+
+    def tearDown(self):
+        shutil.rmtree(self.d)
+
+    def test_folder_layout_passes(self):
+        write(os.path.join(self.d, "report.md"), self.good)
+        ko = self.good.replace("No idea is recommended. One idea is a near miss.", "추천할 아이디어는 없다. 하나는 Near miss다.")
+        write(os.path.join(self.d, "report.ko.md"), ko)
+        rc, out = run(lambda a: lint.lint_gate(*a), [self.d, None, None])
+        self.assertEqual(rc, 0, out)
+
+    def test_internal_codes_and_raw_words_fail(self):
+        bad = self.good.replace("It does not test shift.", "It does not test shift [FT] (E3).").replace("— Rejected", "— KILLED")
+        write(os.path.join(self.d, "report.md"), bad)
+        rc, out = run(lambda a: lint.lint_gate(*a), [self.d, None, None])
+        self.assertEqual(rc, 1)
+        for needle in ("evidence tag", "evidence id", "raw status word", "verdict label 'Rejected' missing"):
+            self.assertIn(needle, out)
+
+    def test_missing_human_report_fails(self):
+        rc, out = run(lambda a: lint.lint_gate(*a), [self.d, None, None])
+        self.assertEqual(rc, 1)
+        self.assertIn("report.md missing", out)
+
+    def test_ledger_reads_folder_summary(self):
+        lp = os.path.join(self.d, "ledger.jsonl")
+        rc, out = run(ledger.main, ["add", lp, "--from-summary", self.d, "--dry-run"])
+        self.assertEqual(rc, 0)
+        self.assertEqual(out.count("DRY-RUN"), 2)
+
+    def test_scout_folder(self):
+        rows = [{"id": "C1", "source": "landscape", "level": "low", "status": "annotated", "hypothesis": "h1", "rank": 3.2},
+                {"id": "C2", "source": "landscape", "level": "low", "status": "annotated", "hypothesis": "h2", "rank": 2.1},
+                {"id": "C3", "source": "landscape", "level": "low", "status": "dropped", "hypothesis": "h3", "rank": 0}]
+        write(os.path.join(self.d, "candidates.jsonl"), "\n".join(json.dumps(r) for r in rows) + "\n")
+        write(os.path.join(self.d, "report.md"), "# Topic scout\n\n## Result\nTwo ideas are not checked yet.\n\n"
+                                                   "## C1 · First idea — Not checked\n\n## C2 · Second idea — Not checked\n")
+        rc, out = run(lint.lint_scout, self.d)
+        self.assertEqual(rc, 0, out)
+        write(os.path.join(self.d, "report.md"), "# Topic scout\n\n## C1 · only one — Not checked [SEC]\n")
+        rc, out = run(lint.lint_scout, self.d)
+        self.assertEqual(rc, 1)
+        self.assertIn("candidate C2 not mentioned", out)
+
+
 class TestQuoteCheck(unittest.TestCase):
     def test_ligature_hyphenation_and_failure(self):
         d = tempfile.mkdtemp()
@@ -305,6 +365,24 @@ class TestScoutSettings(unittest.TestCase):
         s = self.res("탐색적으로 빠르게 주제 찾아줘. out: /nonexistent/run-dir.")
         self.assertEqual(s["out_dir"]["value"], "/nonexistent/run-dir")
         self.assertFalse(any("not found" in n for n in s["notes"]))
+
+    def test_extra_language(self):
+        self.assertIsNone(self.res("find me a topic")["extra_language"]["value"])
+        self.assertEqual(self.res("주제 찾아줘, 한국어로도")["extra_language"]["value"], "ko")
+        self.assertEqual(self.res("find topics, also in Korean")["extra_language"]["value"], "ko")
+        self.assertEqual(self.res("find topics lang: ja")["extra_language"]["value"], "ja")
+        # profile key, and the legacy output_language key
+        p2 = os.path.join(self.d, "prof2")
+        rc, _ = run(pinit.main, ["--dir", p2, "--interests", "x", "--extra-language", "ko"])
+        self.assertEqual(rc, 0)
+        self.assertEqual(settings.load_constants(p2)["extra_report_language"], "ko")
+        s = settings.resolve("find topics", profile=p2, cwd=self.proj, today="2026-11-05", env={})
+        self.assertEqual((s["extra_language"]["value"], s["extra_language"]["source"]), ("ko", "profile"))
+        prof = os.path.join(p2, "profile.md")
+        write(prof, read(prof).replace('"extra_report_language": "ko"', '"output_language": "ko"'))
+        s = settings.resolve("find topics", profile=p2, cwd=self.proj, today="2026-11-05", env={})
+        self.assertEqual(s["extra_language"]["value"], "ko")
+        self.assertEqual(settings.load_constants(self.prof)["extra_report_language"], None)
 
     def test_low_ignores_corpus_and_conflicts(self):
         s = self.res("level: low, use ./train.py")

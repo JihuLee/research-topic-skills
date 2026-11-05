@@ -38,9 +38,9 @@
 
 | 스킬 | 하는 일 | 주 산출물 |
 |---|---|---|
-| `novelty-gate` | 제안서·후보를 적대적으로 검토한다. 주장을 분해하고, 질의 계열 A–F로 선행을 찾고, 결정적 문장을 원문에서 대조한다. 고전 동치와 이론 강제 여부를 검사하고, 신규성과 실행 가능성을 따로 채점하고, B0를 설계한다 | `gate_report.md`, `evidence.jsonl`, `thresholds.json` |
-| `topic-scout` | 정한 level(high: 내 논문·코드·노트 기반, low: 내 분야의 최근 문헌 탐색)과 depth(quick, standard, full)로 번호 붙은 후보를 만든다. 객관적 사실로만 1차 거른 뒤 상위 후보를 `novelty-gate`에 넘긴다 | `candidates.jsonl`, `scout_report.md`, `corpus_manifest.md` 또는 `landscape.md` |
-| `research-brief` | 통과한 후보를 실행 명세로 바꾼다. 사용자 양식이 있으면 그 양식을 쓰고, 문헌 사실을 본문에 넣고, 임계값 해시를 고정한다. 사람 팀이나 자동 연구 에이전트가 이 명세로 실행한다 | `brief.md`, `thresholds.json.sha256` |
+| `novelty-gate` | 제안서·후보를 적대적으로 검토한다. 주장을 분해하고, 질의 계열 A–F로 선행을 찾고, 결정적 문장을 원문에서 대조한다. 고전 동치와 이론 강제 여부를 검사하고, 신규성과 실행 가능성을 따로 채점하고, B0를 설계한다 | `report.md`, `details.md`, `gate_summary.json`, `evidence.jsonl`, `thresholds.json` |
+| `topic-scout` | 정한 level(high: 내 논문·코드·노트 기반, low: 내 분야의 최근 문헌 탐색)과 depth(quick, standard, full)로 번호 붙은 후보를 만든다. 객관적 사실로만 1차 거른 뒤 상위 후보를 `novelty-gate`에 넘긴다 | `report.md`, `details.md`, `candidates.jsonl`, `corpus_manifest.md` 또는 `landscape.md` |
+| `research-brief` | 통과한 후보를 실행 명세로 바꾼다. 사용자 양식이 있으면 그 양식을 쓰고, 문헌 사실을 본문에 넣고, 임계값 해시를 고정한다. 사람 팀이나 자동 연구 에이전트가 이 명세로 실행한다 | `brief.md`, `report.md`, `thresholds.json.sha256` |
 
 ```
 corpus + profile + ledger ─► topic-scout ─► shortlist ─► novelty-gate ─► PASS ─► research-brief
@@ -121,7 +121,7 @@ $EDITOR ~/research-profile/profile.md                                        # j
 
 | 키 | 형식 | 기본값 | 쓰임 |
 |---|---|---|---|
-| `output_language` | 문자열(`ko`, `en` …) | 요청 언어 | 보고서 언어 |
+| `extra_report_language` | ISO 639-1 코드(`ko`, `ja` …) 또는 `null` | `null`(영어만) | `report.<code>.md`를 추가로 쓴다. 산문만 번역하고 전문용어는 영어로 둔다 |
 | `interests` | 문자열 목록(우선순위 순) | — | 생성 관점, 순위 |
 | `preferred_contributions` | 목록(`method`, `benchmark`, `analysis`, `theory`, `dataset`) | `method`, `benchmark`, `analysis` | 순위 |
 | `target_venues` | 목록 | — | 기여 형태, 심사 기준 |
@@ -156,7 +156,7 @@ $EDITOR ~/research-profile/profile.md                                        # j
 | `tags`, `report`, `notes` | | 목록 / 경로·URL / 문자열 |
 
 ```json
-{"id": "2026-02-03-T2", "date": "2026-02-03", "title": "...", "claim": "...", "verdict": "near-miss", "stage": "gate", "novelty": 3, "feasibility": 5, "killers": [], "near_miss_b0": "...", "tags": ["uncertainty"], "report": "gate-.../gate_report.md"}
+{"id": "2026-02-03-T2", "date": "2026-02-03", "title": "...", "claim": "...", "verdict": "near-miss", "stage": "gate", "novelty": 3, "feasibility": 5, "killers": [], "near_miss_b0": "...", "tags": ["uncertainty"], "report": "gate-.../"}
 ```
 
 ledger는 두 가지에 쓰인다.
@@ -165,7 +165,7 @@ ledger는 두 가지에 쓰인다.
 
 ### `lessons.md`
 
-교훈을 검사 가능한 문장으로 적는다(예: "검사: native 무개입 기준선이 사전등록되었다"). `novelty-gate`는 모든 항목을 체크리스트로 적용하고 결과를 보고서 5절에 적는다. 일반적인 시작 목록은 `templates/lessons.md`에 있다.
+교훈을 검사 가능한 문장으로 적는다(예: "검사: native 무개입 기준선이 사전등록되었다"). `novelty-gate`는 모든 항목을 체크리스트로 적용하고 결과를 `details.md` 5절에 적는다. 일반적인 시작 목록은 `templates/lessons.md`에 있다.
 
 ### `assets.md`
 
@@ -183,15 +183,35 @@ ledger는 두 가지에 쓰인다.
 
 ```
 <out_dir>/
-├── gate_report.md      # 사람이 읽는 보고서. 끝에 gate-summary JSON 블록
+├── report.md           # 사람용 보고서: 짧고 쉬운 영어(ASD-STE100 방식)
+├── report.<code>.md    # 선택: 추가 언어로 쓴 같은 보고서(예: report.ko.md)
+├── details.md          # 감사 기록: 증거, 검색 범위, 설정(항상 영어)
+├── gate_summary.json   # novelty-gate: 기계용 요약(스키마 novelty-gate/v1)
 ├── evidence.jsonl      # 증거 기록: 주장, URL, 원문 인용, 위치, 등급
+├── candidates.jsonl    # topic-scout: 번호 붙은 후보
 ├── notes/              # 하위 조사 노트
 ├── lit/                # 받은 PDF와 추출 텍스트(공유할 때 제외 권장)
 ├── thresholds.json     # B0 사전 고정 임계값과 .sha256
-├── corpus_manifest.md  # topic-scout
-├── scout_report.md     # topic-scout
+├── corpus_manifest.md  # topic-scout (level low이면 landscape.md)
 └── brief.md            # research-brief
 ```
+
+**사람용 보고서 (`report.md`)**
+
+- 판정, 이유, 다음 행동만 담는다. 후보 하나에 한 화면 정도다.
+- 규칙은 `shared/references/report_style.md`에 있다. 한 문장에 한 가지 내용, 능동태, 내부 코드(증거 번호, 증거 등급, 작업 용어) 금지.
+- 판정은 정해진 용어로만 쓴다.
+
+| 용어 | 내부 상태 |
+|---|---|
+| Recommended | PASS |
+| Near miss | NEAR-MISS |
+| Rejected | KILLED |
+| Removed | DROPPED |
+| Not checked | 아직 신규성 검증에 보내지 않음 |
+
+- **언어.** 기본은 영어다. 프로필에 `extra_report_language`를 넣거나 요청에 "한국어로도", `lang: ko`라고 쓰면 `report.ko.md`도 만든다. 산문만 번역하고, 전문용어, 판정 용어, 이름, 논문 제목, 명령어, 숫자는 영어로 둔다. `details.md`와 JSON 파일은 항상 영어다.
+- `report_lint.py`가 사람용 보고서의 길이, 내부 코드, 모든 후보 번호와 판정 용어가 있는지를 검사한다.
 
 **증거 등급**
 
@@ -213,9 +233,9 @@ ledger는 두 가지에 쓰인다.
   - **KILLED:** 이름 있는 논문, 고전 동치, 또는 이론 강제로 탈락했다.
   - **DROPPED:** scout가 객관적 사유(제외, 예산, 자료, ledger)로 뺐다.
 
-**`gate-summary` 블록**
+**`gate_summary.json`**
 
-보고서 끝에 info string이 `json gate-summary`인 코드 블록으로 넣는다. 스키마는 `novelty-gate/v1`이고 예시는 `skills/novelty-gate/references/report_template.md`에 있다.
+스키마는 `novelty-gate/v1`이고 예시는 `skills/novelty-gate/references/details_template.md`에 있다. 끝에 `json gate-summary` 코드 블록이 있는 예전 단일 파일 보고서도 `report_lint.py`와 `ledger.py`가 그대로 읽는다.
 - 필수 키: `date`, `literature_cutoff`, `entry_threshold`, `verdict`(`pass`/`none`), `candidates[]`, `coverage[]`(주장 × 질의 계열 A–F).
 - 각 후보는 `id`, `title`, `claim`, `novelty`, `feasibility`, `status`, `killer_type`, `closest_prior[]`(`title`, `url`, `tag`, `evidence`)을 갖는다.
 - PASS와 NEAR-MISS 후보에는 다음이 더 필요하다.
@@ -231,7 +251,7 @@ ledger는 두 가지에 쓰인다.
 |---|---|---|
 | `lit_fetch.py` | gate, scout | `arxiv`(날짜 필터, 엄격한 키워드), `openalex`(관련도 검색과 날짜 필터), `citing`(forward citation), `resolve`(인용 존재 확인; arXiv id도 OpenAlex를 먼저 조회하고, `--no-arxiv` 지원), `pdf`(받기와 텍스트 추출). `--save-abstracts DIR`로 초록을 파일로 남겨 ABS 인용도 대조할 수 있다. HTTP 429가 나면 한 번만 짧게 재시도한 뒤 안내와 함께 바로 실패한다. OpenAlex는 하루 한도가 있다(키 없이 검색 약 100번, 무료 키를 쓰면 약 10배). openalex.org Settings에서 키를 받아 `export OPENALEX_API_KEY=...`로 설정한다 |
 | `quote_check.py` | gate, scout | `evidence.jsonl`의 FT 인용이 원문에 실제로 있는지 정규화해서 대조한다(합자, 줄바꿈 하이픈, 공백) |
-| `report_lint.py` | gate, brief | `gate`: summary 스키마, 탈락 근거, 대조군 4종, B0, coverage. `brief`: 빈 항목, 자리표시, 문헌 URL 수, 임계값 해시 |
+| `report_lint.py` | 모두 | `gate OUT_DIR`: summary 스키마, 탈락 근거, 대조군 4종, B0, coverage, 사람용 보고서. `scout OUT_DIR`: 후보 기록과 사람용 보고서. `human REPORT.md`: 사람용 보고서 하나. `brief`: 빈 항목, 자리표시, 문헌 URL 수, 임계값 해시 |
 | `ledger.py` | 모두 | `validate`, `list`, `check`(근접 중복), `add`(`--from-summary` 포함), `update` |
 | `freeze.py` | gate, brief | `template`, `freeze`(정규화 JSON의 sha256), `verify`(어긋나면 실패), `amend --reason`(수정 이력을 `.amendments.jsonl`에 남김; 결과를 본 뒤에는 강화만 허용) |
 | `corpus_scan.py` | scout | 코퍼스에서 단서 위치를 색인한다 |
@@ -315,6 +335,11 @@ python3 tools/validate_skills.py               # Agent Skills 규격과 이식�
 
 ## 변경 이력
 
+- **0.3.0**
+  - 실행마다 짧은 사람용 보고서(`report.md`)와 별도의 감사 기록(`details.md`, novelty-gate는 `gate_summary.json`도)을 만든다.
+  - 사람용 보고서는 기본이 영어다. 추가 언어(`extra_report_language` 또는 "한국어로도")를 정하면 `report.<code>.md`도 만든다. 산문만 번역한다.
+  - `report_lint.py`에 `scout`, `human` 모드를 추가했고, 사람용 보고서의 내부 코드와 길이를 검사한다.
+  - 프로필 키 `output_language`를 `extra_report_language`로 바꿨다. 예전 키도 계속 읽는다.
 - **0.2.0**
   - topic-scout에 level(high/medium/low)과 depth(quick/standard/full), 설정 카드, 후보 번호와 후속 요청, 처음 사용 시 자동 설정을 추가했다.
   - novelty-gate에 light 모드를 추가했다.

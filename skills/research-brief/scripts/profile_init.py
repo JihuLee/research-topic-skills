@@ -3,7 +3,7 @@
 
   profile_init.py [--dir ~/research-profile] --interests "area one; area two"
                   [--exclusions "a; b"] [--gpu-hours 10] [--download-gb 10] [--wall-clock-hours 48]
-                  [--hardware "2 GPUs, 24 GB each"] [--language en] [--venues "venue; venue"]
+                  [--hardware "2 GPUs, 24 GB each"] [--extra-language ko] [--venues "venue; venue"]
                   [--level medium] [--depth standard] [--corpus "path; path"] [--force]
 
 Writes profile.md (prose placeholders + a json profile block), an empty ledger.jsonl,
@@ -48,7 +48,7 @@ def main(argv=None):
     p.add_argument("--download-gb", type=float, default=10)
     p.add_argument("--wall-clock-hours", type=float, default=48)
     p.add_argument("--hardware", default="unspecified")
-    p.add_argument("--language", default="en")
+    p.add_argument("--extra-language", default=None, help="ISO 639-1 code for an extra human report, e.g. ko")
     p.add_argument("--venues", default="")
     p.add_argument("--level", choices=["high", "medium", "low"], default="medium")
     p.add_argument("--depth", choices=["quick", "standard", "full"], default="standard")
@@ -64,7 +64,7 @@ def main(argv=None):
     os.makedirs(d, exist_ok=True)
     num = lambda x: int(x) if float(x).is_integer() else x
     constants = {
-        "output_language": a.language,
+        "extra_report_language": a.extra_language,
         "interests": split(a.interests),
         "preferred_contributions": ["method", "benchmark", "analysis"],
         "target_venues": split(a.venues),

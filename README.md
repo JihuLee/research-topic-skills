@@ -7,7 +7,7 @@ Agent Skills that help you **find research topics, check whether they are really
 | Skill | You say | You get |
 |---|---|---|
 | `topic-scout` | "Find me a research topic" | Numbered candidate topics from your field (and, if you want, from your own papers and code), with the best one already vetted |
-| `novelty-gate` | "Has anyone done this already?" | A verdict (PASS, NEAR-MISS or NONE) with the closest prior papers, quoted and linked, plus the cheapest experiment that could prove the idea wrong |
+| `novelty-gate` | "Has anyone done this already?" | A verdict (Recommended, Near miss or Rejected) with the closest prior papers, linked, plus the cheapest first test that could prove the idea wrong |
 | `research-brief` | "Write the study plan for C1" | An execution-ready study specification with baselines, data splits and thresholds frozen before any result |
 
 They chain as **topic-scout → novelty-gate → research-brief**, and each one also works on its own.
@@ -56,12 +56,14 @@ Has anyone already done this? Keep dropout on at test time and average several
 predictions to get uncertainty estimates for a trained classifier.
 ```
 
-Abridged example answer:
+Abridged example report:
 
 ```
-Verdict: NONE. Killed (novelty 2/5).
-Closest prior: Gal & Ghahramani, "Dropout as a Bayesian Approximation" (2016),
-https://arxiv.org/abs/1506.02142 — states exactly this method (verified in full text).
+## C1 · Test-time dropout for uncertainty — Rejected
+novelty score 2/5 · feasibility score 5/5
+
+**Why.** Gal & Ghahramani (2016) already state this exact method.
+Confirmed in the paper's full text.
 ```
 
 ### 3. Continue from the results
@@ -71,13 +73,21 @@ Check C3 as well.
 Write the study plan for C1.
 ```
 
+## What you get
+
+Each run writes a folder:
+- `report.md`: the short report for you. It gives the decision, the reason and the next step, in plain English.
+- `details.md`: the full audit record, with quotes, search coverage and settings. Read it to check a verdict.
+
+Want the report in another language too? Say "also in Korean" (or `lang: ko`). You then also get `report.ko.md`. Only the prose is translated; technical terms stay in English. To get it every time, add `"extra_report_language": "ko"` to your profile.
+
 ## Your profile
 
 On first use the skills ask four short questions:
 1. your field;
 2. topics to avoid;
 3. a rough compute budget;
-4. the report language.
+4. whether you also want reports in another language (English is the default).
 
 They save the answers in `~/research-profile/`. Edit `profile.md` there whenever you like, to describe your taste or change the defaults. Keep that folder private.
 

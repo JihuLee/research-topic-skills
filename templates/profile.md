@@ -16,7 +16,7 @@ The numbers below are placeholders, not recommendations.
 
 ```json profile
 {
-  "output_language": "en",
+  "extra_report_language": null,
   "interests": ["<research area, most preferred first>", "<second area>"],
   "preferred_contributions": ["method", "benchmark", "analysis"],
   "target_venues": ["<venue or track>"],

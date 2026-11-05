@@ -26,7 +26,7 @@ If none is found, follow [onboarding.md](onboarding.md): ask four short question
 
 | Key | Type | Default | Used for |
 |---|---|---|---|
-| `output_language` | string | language of the request | report language |
+| `extra_report_language` | ISO 639-1 code or `null` | `null` | also write the human report in this language (`report.<code>.md`); reports are English by default, and `details.md` is always English. A request such as "also in Korean" or `lang: ko` sets it for one run. The older key `output_language`, if not `en`, is read as this |
 | `interests` | list of strings, ranked | — | generation lenses, ranking |
 | `preferred_contributions` | list | `["method","benchmark","analysis"]` | ranking |
 | `target_venues` | list | — | framing and venue criteria |
