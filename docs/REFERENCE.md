@@ -377,6 +377,7 @@ python3 tools/validate_skills.py                          # Agent Skills spec, p
 
 ## Credits
 
+- Overview diagram: made with [stack-diagram](https://github.com/caru-ini/stack-diagram) (MIT); icons from [Lucide](https://lucide.dev) (ISC). The arXiv and OpenAlex marks belong to their owners.
 - [Agent Skills specification](https://agentskills.io/specification)
 - [ARIS — Auto-claude-code-research-in-sleep](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep) (MIT). No code was copied. These ideas were adapted and rewritten:
   - a kill must name a paper;

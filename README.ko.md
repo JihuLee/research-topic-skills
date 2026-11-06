@@ -12,6 +12,11 @@
 
 **topic-scout → novelty-gate → research-brief** 순서로 이어지며, 각 스킬을 따로 써도 됩니다.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/overview-dark.png">
+  <img src="docs/images/overview.png" alt="개요: topic-scout에 주제를 찾게 하거나 novelty-gate에 아이디어 하나를 검토하게 합니다. novelty-gate는 arXiv와 OpenAlex에서 논문을 읽습니다. 통과한 아이디어는 research-brief로 가서 팀이나 에이전트용 연구 계획이 됩니다. 비공개 프로필과 ledger가 스킬에 정보를 주고, 새 판정은 사용자가 동의할 때만 저장됩니다.">
+</picture>
+
 ## 설치
 
 ```bash

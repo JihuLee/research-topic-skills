@@ -360,6 +360,7 @@ python3 tools/validate_skills.py               # Agent Skills 규격과 이식�
 
 ## 출처와 감사
 
+- 개요 그림: [stack-diagram](https://github.com/caru-ini/stack-diagram)(MIT)으로 만들었고, 아이콘은 [Lucide](https://lucide.dev)(ISC)다. arXiv와 OpenAlex 마크는 각 소유자의 것이다.
 - [Agent Skills specification](https://agentskills.io/specification)
 - [Codex skills 문서](https://learn.chatgpt.com/docs/build-skills)
 - [ARIS — Auto-claude-code-research-in-sleep](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep) (MIT). 코드를 가져오지 않고 다음 아이디어만 참고해 다시 썼다.

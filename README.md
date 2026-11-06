@@ -12,6 +12,11 @@ Agent Skills that help you **find research topics, check whether they are really
 
 They chain as **topic-scout → novelty-gate → research-brief**, and each one also works on its own.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/overview-dark.png">
+  <img src="docs/images/overview.png" alt="Overview: you ask topic-scout for topics, or novelty-gate to check one idea. novelty-gate reads papers from arXiv and OpenAlex. A passed idea goes to research-brief, which writes a study plan for a team or an agent. A private profile and ledger feed the skills, and new verdicts are saved only if you agree.">
+</picture>
+
 ## Install
 
 ```bash
