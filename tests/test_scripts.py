@@ -162,6 +162,30 @@ class TestFreeze(unittest.TestCase):
         finally:
             shutil.rmtree(d)
 
+    def test_after_results_only_tightens(self):
+        d = tempfile.mkdtemp()
+        try:
+            p = os.path.join(d, "thresholds.json")
+            base = {"min_effect": 0.4, "kill_if": "x", "baselines": ["native", "default"], "budget": {"gpu_hours": 4}}
+            dump(base, p)
+            self.assertEqual(run(freeze.main, ["freeze", p])[0], 0)
+            dump(dict(base, min_effect=0.3), p)
+            rc, _ = run(freeze.main, ["freeze", p])
+            self.assertEqual(rc, 1)  # re-freezing a changed file is refused
+            for relaxed in (dict(base, min_effect=0.3), dict(base, kill_if="y"), dict(base, baselines=["native"]),
+                            dict(base, budget={"gpu_hours": 8})):
+                dump(relaxed, p)
+                rc, _ = run(freeze.main, ["amend", p, "--reason", "r", "--after-results"])
+                self.assertEqual(rc, 1, relaxed)
+            dump(dict(base, min_effect=0.5, baselines=["native", "default", "equal_compute"]), p)
+            rc, _ = run(freeze.main, ["amend", p, "--reason", "tighten", "--after-results"])
+            self.assertEqual(rc, 0)
+            self.assertEqual(run(freeze.main, ["verify", p])[0], 0)
+            log = [json.loads(l) for l in read(p + ".amendments.jsonl").splitlines()]
+            self.assertEqual(log[-1]["changes"], ["$.baselines", "$.min_effect"])
+        finally:
+            shutil.rmtree(d)
+
 
 class TestReportLint(unittest.TestCase):
     def test_good_gate(self):
@@ -250,6 +274,14 @@ class TestHumanReports(unittest.TestCase):
         for needle in ("evidence tag", "evidence id", "raw status word", "verdict label 'Rejected' missing"):
             self.assertIn(needle, out)
 
+    def test_bare_codes_only_warn(self):
+        ok = self.good.replace("It does not test shift.", "It does not test full FT of the backbone or E5 embeddings.")
+        write(os.path.join(self.d, "report.md"), ok)
+        rc, out = run(lambda a: lint.lint_gate(*a), [self.d, None, None])
+        self.assertEqual(rc, 0, out)
+        self.assertIn("possible evidence tag", out)
+        self.assertIn("possible evidence id", out)
+
     def test_missing_human_report_fails(self):
         rc, out = run(lambda a: lint.lint_gate(*a), [self.d, None, None])
         self.assertEqual(rc, 1)
@@ -301,6 +333,29 @@ class TestQuoteCheck(unittest.TestCase):
             shutil.rmtree(d)
 
 
+    def test_fuzzy_accepts_small_edits_but_not_meaning_flips(self):
+        d = tempfile.mkdtemp()
+        try:
+            body = ("Intro text that is unrelated to the claim. We find that label smoothing improves the calibration "
+                    "of the network on in-distribution test data, and the gain is 15% across all architectures we "
+                    "evaluated. Another sentence follows here, ending the text.")
+            write(os.path.join(d, "p.txt"), body)
+            ev = os.path.join(d, "evidence.jsonl")
+            def check(quote):
+                write(ev, json.dumps({"id": "E1", "tag": "FT", "source": "p.txt", "quote": quote}) + "\n")
+                return run(qc.main, [ev])
+            rc, out = check("label smoothing improves calibration of the network on in-distribution test data, and the gain is 15%")
+            self.assertEqual(rc, 0, out)
+            self.assertIn("fuzzy", out)
+            for bad, word in (("label smoothing does not improve the calibration of the network on in-distribution test data", "not"),
+                              ("the gain is 25% across all architectures we evaluated", "25%"),
+                              ("another sentence follows here, not ending the text.", "not")):
+                rc, out = check(bad)
+                self.assertEqual(rc, 1, out)
+                self.assertIn(word, out)
+        finally:
+            shutil.rmtree(d)
+
 class TestCorpusScan(unittest.TestCase):
     def test_scan(self):
         d = tempfile.mkdtemp()
@@ -333,71 +388,66 @@ class TestScoutSettings(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.d)
 
-    def res(self, req, cwd=None):
-        return settings.resolve(req, profile=self.prof, cwd=cwd or self.proj, today="2026-11-05", env={})
+    def res(self, cwd=None, **kw):
+        return settings.resolve(profile=self.prof, cwd=cwd or self.proj, today="2026-11-05", env={}, **kw)
 
     def test_defaults_and_auto_corpus(self):
-        s = self.res("주제 찾아줘")
+        s = self.res()
         self.assertEqual((s["level"]["value"], s["level"]["source"]), ("medium", "profile"))
         self.assertEqual((s["depth"]["value"], s["finalists"]["value"], s["gate_mode"]), ("standard", 1, "light"))
         self.assertEqual(s["corpus"]["paths"], [self.proj])
         self.assertEqual(s["cutoff"]["value"], "2026-11-05")
+        self.assertIsNone(s["direction"])
 
-    def test_korean_phrases(self):
-        s = self.res("탐색적으로 빠르게 주제 찾아줘, 분야는 의료영상")
+    def test_flags(self):
+        s = self.res(level="low", depth="quick", field="depth estimation")
         self.assertEqual((s["level"]["value"], s["depth"]["value"], s["finalists"]["value"]), ("low", "quick", 0))
+        self.assertEqual((s["level"]["source"], s["gate_mode"]), ("request", "none"))
+        self.assertEqual(s["direction"], "depth estimation")
         self.assertEqual(s["corpus"]["paths"], [])
-        self.assertEqual(s["direction"], "의료영상")
-        s = self.res("내 코드 기반으로 꼼꼼하게 주제 찾아줘")
-        self.assertEqual((s["level"]["value"], s["depth"]["value"], s["finalists"]["value"], s["gate_mode"]),
-                         ("high", "full", 3, "full"))
+        s = self.res(level="high", depth="full")
+        self.assertEqual((s["finalists"]["value"], s["gate_mode"]), (3, "full"))
+        self.assertEqual(self.res(depth="full", gate=1)["finalists"]["value"], 1)
 
-    def test_explicit_overrides_and_paths(self):
+    def test_paths_cutoff_out(self):
         other = os.path.join(self.d, "papers")
         os.makedirs(other)
-        s = self.res(f"find topics level: high depth: quick cutoff 2026-01-31 out: ./scout from {other}")
-        self.assertEqual((s["level"]["source"], s["depth"]["source"]), ("request (explicit)", "request (explicit)"))
-        self.assertEqual(s["cutoff"]["value"], "2026-01-31")
+        s = self.res(corpus=[other, "./missing"], cutoff="2026-01-31", out="./scout")
         self.assertEqual(s["corpus"]["paths"], [other])
+        self.assertTrue(any("not found" in n for n in s["notes"]))
+        self.assertEqual(s["cutoff"]["value"], "2026-01-31")
         self.assertEqual(s["out_dir"]["value"], os.path.join(self.proj, "scout"))
 
-    def test_out_dir_is_not_a_corpus_path(self):
-        s = self.res("탐색적으로 빠르게 주제 찾아줘. out: /nonexistent/run-dir.")
-        self.assertEqual(s["out_dir"]["value"], "/nonexistent/run-dir")
-        self.assertFalse(any("not found" in n for n in s["notes"]))
-
     def test_extra_language(self):
-        self.assertIsNone(self.res("find me a topic")["extra_language"]["value"])
-        self.assertEqual(self.res("주제 찾아줘, 한국어로도")["extra_language"]["value"], "ko")
-        self.assertEqual(self.res("find topics, also in Korean")["extra_language"]["value"], "ko")
-        self.assertEqual(self.res("find topics lang: ja")["extra_language"]["value"], "ja")
-        # profile key, and the legacy output_language key
+        self.assertIsNone(self.res()["extra_language"]["value"])
+        self.assertEqual(self.res(extra_language="ko")["extra_language"]["value"], "ko")
+        self.assertIsNone(self.res(extra_language="none")["extra_language"]["value"])
         p2 = os.path.join(self.d, "prof2")
         rc, _ = run(pinit.main, ["--dir", p2, "--interests", "x", "--extra-language", "ko"])
         self.assertEqual(rc, 0)
         self.assertEqual(settings.load_constants(p2)["extra_report_language"], "ko")
-        s = settings.resolve("find topics", profile=p2, cwd=self.proj, today="2026-11-05", env={})
+        s = settings.resolve(profile=p2, cwd=self.proj, today="2026-11-05", env={})
         self.assertEqual((s["extra_language"]["value"], s["extra_language"]["source"]), ("ko", "profile"))
         prof = os.path.join(p2, "profile.md")
         write(prof, read(prof).replace('"extra_report_language": "ko"', '"output_language": "ko"'))
-        s = settings.resolve("find topics", profile=p2, cwd=self.proj, today="2026-11-05", env={})
+        s = settings.resolve(profile=p2, cwd=self.proj, today="2026-11-05", env={})
         self.assertEqual(s["extra_language"]["value"], "ko")
         self.assertEqual(settings.load_constants(self.prof)["extra_report_language"], None)
 
-    def test_low_ignores_corpus_and_conflicts(self):
-        s = self.res("level: low, use ./train.py")
+    def test_low_ignores_corpus(self):
+        s = self.res(level="low", corpus=[os.path.join(self.proj, "train.py")])
         self.assertEqual(s["corpus"]["paths"], [])
         self.assertTrue(any("not read" in n for n in s["notes"]))
-        s = self.res("내 코드로 탐색적으로")
-        self.assertEqual(s["level"]["value"], "medium")
-        self.assertTrue(any("both" in n for n in s["notes"]))
 
-    def test_missing_profile(self):
-        s = settings.resolve("주제 찾아줘", profile=None, cwd=self.proj, today="2026-11-05", env={"HOME": self.d})
+    def test_missing_profile_and_cli(self):
+        s = settings.resolve(profile=None, cwd=self.proj, today="2026-11-05", env={"HOME": self.d})
         # the real home may hold a profile; only check the status field is well-formed
         self.assertIn(s["profile"]["status"], ("found", "missing"))
-        rc, out = run(settings.main, ["--request", "x", "--profile", os.path.join(self.d, "nope"), "--cwd", self.d])
-        self.assertIn("level: medium", out)
+        rc, out = run(settings.main, ["--profile", os.path.join(self.d, "nope"), "--cwd", self.d, "--depth", "quick"])
+        self.assertIn("depth: quick (request)", out)
+        self.assertIn("profile not found at", out)
+        with self.assertRaises(SystemExit):
+            run(settings.main, ["--depth", "deep"])
 
     def test_profile_init_refuses_overwrite_and_template_parses(self):
         rc, out = run(pinit.main, ["--dir", self.prof, "--interests", "x"])

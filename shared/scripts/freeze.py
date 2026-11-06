@@ -2,17 +2,20 @@
 """freeze.py - pre-register decision thresholds before seeing results (Python stdlib only).
 
   template                  print a skeleton thresholds JSON
-  freeze FILE.json          hash the canonical JSON and write FILE.json.sha256
+  freeze FILE.json          hash the canonical JSON, write FILE.json.sha256 and a snapshot
+                            FILE.json.frozen.json; refuses if a different hash is already recorded
   verify FILE.json          recompute and compare with FILE.json.sha256 (exit 1 on mismatch)
   amend FILE.json --reason TEXT [--after-results]
-                            re-freeze an edited file and append {date, old, new, reason} to
-                            FILE.json.amendments.jsonl. After results, amendments may only tighten.
+                            re-freeze an edited file and append {date, old, new, reason, changes}
+                            to FILE.json.amendments.jsonl. With --after-results only tightening
+                            changes are accepted (see TIGHTER); anything else exits 1 unchanged.
 
 The hash covers the canonical form (sorted keys, no whitespace), so reformatting the file
 does not change it but any change of a key or value does. Numbers must be JSON numbers:
 freeze warns when a string looks like a number, because prose thresholds get misread.
 After results are seen, thresholds may only be tightened through a logged amendment,
-never relaxed.
+never relaxed. A changed prose condition (promote_if, kill_if, ...) cannot be checked
+automatically, so after results it is refused: register a new file instead.
 """
 import argparse
 import datetime as dt
@@ -38,6 +41,13 @@ TEMPLATE = {
     "baselines": ["native", "common_default", "simplest_key_info", "equal_compute"],
     "budget": {"gpu_hours": 0, "download_gb": 0, "wall_clock_hours": 0},
 }
+# Field -> which direction is stricter. Only these may change after results.
+TIGHTER = {
+    "$.min_effect": "up", "$.headroom_multiplier": "up", "$.resampling.ci": "up", "$.resampling.n_boot": "up",
+    "$.known_good.tolerance": "down", "$.null_fixture.tolerance": "down",
+    "$.budget.gpu_hours": "down", "$.budget.download_gb": "down", "$.budget.wall_clock_hours": "down",
+    "$.baselines": "superset", "$.frozen_on": "any",
+}
 NUMERIC_STR = re.compile(r"^\s*[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?\s*$")
 
 
@@ -60,6 +70,47 @@ def numeric_strings(obj, path="$"):
     elif isinstance(obj, str) and NUMERIC_STR.match(obj):
         out.append(path)
     return out
+
+
+def changes(old, new, path="$"):
+    """List (path, old, new) for every leaf that differs."""
+    if isinstance(old, dict) and isinstance(new, dict):
+        out = []
+        for k in sorted(set(old) | set(new)):
+            out += changes(old.get(k), new.get(k), f"{path}.{k}")
+        return out
+    return [] if old == new else [(path, old, new)]
+
+
+def relaxing(diff):
+    """Changes that are not provably tighter."""
+    bad = []
+    for path, o, n in diff:
+        rule = TIGHTER.get(path)
+        num = isinstance(o, (int, float)) and isinstance(n, (int, float))
+        if rule == "any":
+            continue
+        if rule == "up" and num and n > o or rule == "down" and num and n < o:
+            continue
+        if rule == "superset" and isinstance(o, list) and isinstance(n, list) and set(o) <= set(n):
+            continue
+        bad.append(path)
+    return bad
+
+
+def write_frozen(file, obj, h):
+    with open(file + ".sha256", "w", encoding="utf-8") as fh:
+        fh.write(f"{h}  {file} (canonical-json)\n")
+    with open(file + ".frozen.json", "w", encoding="utf-8") as fh:
+        json.dump(obj, fh, indent=2, ensure_ascii=False, sort_keys=True)
+
+
+def recorded_hash(file):
+    try:
+        with open(file + ".sha256", encoding="utf-8") as fh:
+            return fh.read().split()[0]
+    except FileNotFoundError:
+        return None
 
 
 def main(argv=None):
@@ -85,24 +136,35 @@ def main(argv=None):
     if a.cmd == "freeze":
         for path in numeric_strings(obj):
             print(f"WARNING: {path} is a string that looks like a number; use a JSON number", file=sys.stderr)
-        with open(a.file + ".sha256", "w", encoding="utf-8") as fh:
-            fh.write(f"{h}  {a.file} (canonical-json)\n")
+        old_h = recorded_hash(a.file)
+        if old_h and old_h != h:
+            print(f"ERROR: {a.file} is already frozen with a different hash; use amend --reason", file=sys.stderr)
+            return 1
+        write_frozen(a.file, obj, h)
         print(h)
         return 0
     if a.cmd == "amend":
+        old_h = recorded_hash(a.file)
         try:
-            with open(a.file + ".sha256", encoding="utf-8") as fh:
-                old_h = fh.read().split()[0]
+            with open(a.file + ".frozen.json", encoding="utf-8") as fh:
+                old_obj = json.load(fh)
         except FileNotFoundError:
-            old_h = None
+            old_obj = None
+        diff = changes(old_obj, obj) if isinstance(old_obj, dict) else []
+        if a.after_results:
+            if old_obj is None:
+                print(f"ERROR: no {a.file}.frozen.json snapshot, so tightening cannot be checked", file=sys.stderr)
+                return 1
+            bad = relaxing(diff)
+            if bad:
+                print("ERROR: after results only tightening is allowed; not provably tighter: "
+                      + ", ".join(bad) + ". Nothing was changed; register a new file instead.", file=sys.stderr)
+                return 1
         entry = {"date": dt.date.today().isoformat(), "old": old_h, "new": h, "reason": a.reason,
-                 "after_results": bool(a.after_results)}
+                 "after_results": bool(a.after_results), "changes": [p for p, _, _ in diff]}
         with open(a.file + ".amendments.jsonl", "a", encoding="utf-8") as fh:
             fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
-        with open(a.file + ".sha256", "w", encoding="utf-8") as fh:
-            fh.write(f"{h}  {a.file} (canonical-json)\n")
-        if a.after_results:
-            print("NOTE: amendment after results; it must only tighten thresholds", file=sys.stderr)
+        write_frozen(a.file, obj, h)
         print(h)
         return 0
     try:

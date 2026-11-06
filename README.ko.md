@@ -36,7 +36,7 @@ npx skills add JihuLee/research-topic-skills -g
 
 ```
 level: medium (profile) · depth: standard (default) · gate: top 1, light mode
-corpus: - (none)
+corpus: - [none]
 direction: 의료영상 · cutoff: 2026-11-04 · out: ./scout-2026-11-04-medium
 ```
 

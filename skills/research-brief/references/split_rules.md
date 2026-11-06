@@ -6,7 +6,7 @@
    - This makes splits reproducible and impossible to tune.
 
 2. **Group before splitting.**
-   - Group near-duplicates (perceptual hash or embedding distance below a threshold fixed in advance) and same-source items (same scene, sequence, lot, patient, wafer, author, capture session).
+   - Group near-duplicates (perceptual hash or embedding distance below a threshold fixed in advance) and same-source items (same scene, sequence, lot, patient, device, author, capture session).
    - Assign whole groups.
    - Do this before looking at any performance number.
 

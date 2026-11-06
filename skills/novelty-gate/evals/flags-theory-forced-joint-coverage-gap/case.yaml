@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: flags-theory-forced-joint-coverage-gap
+expected_outcome: |
+  The gate recognizes the gap as theory-forced: in high effective dimension, a tiny relative error in the posterior variance scale makes joint (whole-image) coverage collapse while per-pixel coverage stays near nominal (roughly Phi(z_alpha - eps * sqrt(d_eff / 2))). So the gap alone does not show a new kind of miscalibration, and the claim is not recommended.

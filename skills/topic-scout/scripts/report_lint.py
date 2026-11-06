@@ -36,14 +36,16 @@ DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 PLACEHOLDER = re.compile(r"(\bTODO\b|\bTBD\b|\?\?\?|\{\{[^}]*\}\}|<fill[^>]*>|<YYYY-MM-DD>|<(?!!--)[A-Z][A-Za-z /-]{1,40}>)")
 LIST_ITEM = re.compile(r"^(\s*)(?:[-*+]|\d+[.)])\s+(.*)$")
 LABELS = {"pass": "Recommended", "near-miss": "Near miss", "killed": "Rejected", "dropped": "Removed"}
+# Bracketed codes are certainly internal; bare ones may be ordinary words ("full FT", "E5 embeddings").
 HUMAN_ERRORS = [
-    (re.compile(r"\bE\d{1,3}\b"), "evidence id"),
+    (re.compile(r"[\[(]\s*E\d{1,3}(?:\s*[,;]\s*E\d{1,3})*\s*[\])]"), "evidence id"),
     (re.compile(r"\[(?:FT|ABS|SEC|FAIL|UNVERIFIED)\]"), "evidence tag"),
-    (re.compile(r"\b(?:FT|SEC)\b"), "evidence tag"),
     (re.compile(r"\b(?:NEAR-MISS|KILLED|DROPPED)\b"), "raw status word (use the term list)"),
     (re.compile(r"killer_type|gate-summary|gate_summary|coverage matrix"), "internal field name"),
 ]
 HUMAN_WARNINGS = [
+    (re.compile(r"(?<![\[(])\bE\d{1,3}\b(?!\s*[\])])"), "possible evidence id"),
+    (re.compile(r"(?<!\[)\b(?:FT|SEC)\b(?!\])"), "possible evidence tag"),
     (re.compile(r"\b(?:ledger|lens|lenses|annotated)\b", re.I), "workflow word"),
 ]
 DEFAULT_SECTIONS = ["meta", "problem", "baselines", "reported", "benchmark", "splits", "metrics",

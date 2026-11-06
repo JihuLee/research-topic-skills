@@ -36,7 +36,7 @@ The scout first shows how it read your request, then works:
 
 ```
 level: medium (profile) · depth: standard (default) · gate: top 1, light mode
-corpus: - (none)
+corpus: - [none]
 direction: medical imaging · cutoff: 2026-11-04 · out: ./scout-2026-11-04-medium
 ```
 

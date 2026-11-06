@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: flags-mean-only-em-blind-deblurring
+expected_outcome: |
+  The gate notices that an M-step against the posterior mean alone drops the posterior-covariance term of the expected log-likelihood, so the method is a point-estimate alternation, which classical work (Levin et al., CVPR 2009 and 2011) shows is biased toward a no-blur kernel unless the image is marginalized. It also names diffusion-based blind deblurring priors such as Fast Diffusion EM (arXiv 2309.00287), BlindDPS (arXiv 2211.10656) or GibbsDDRM (arXiv 2301.12686). It does not recommend the idea as stated.

@@ -6,8 +6,10 @@
 Each evidence line has at least: id, tag, quote, source (path of the extracted text,
 relative to --base, default: the evidence file's directory). Text is normalised before
 matching (Unicode NFKC so ligatures like "fi" match, quotes and dashes unified, hyphenated
-line breaks joined, whitespace collapsed, case folded). If there is no exact match, a fuzzy
-window search reports the best ratio.
+line breaks joined, whitespace collapsed, case folded). If there is no exact match, the quote
+is aligned to the closest passage and scored as 2*matched/(len(quote)+len(passage)). A fuzzy
+match is rejected whatever its ratio when the differing words include a negation, a number or
+a comparison word ("not", "15%", "lower"), because those flip the meaning.
 
 Exit 1 if any FT quote is not found at --min-ratio or better: fix the quote or downgrade
 the tag to SEC. ABS entries are checked when a source is given; SEC and FAIL entries are
@@ -36,29 +38,57 @@ def normalise(s):
     return s.strip().lower()
 
 
+NEGATIONS = {"not", "no", "never", "none", "nor", "neither", "without", "cannot", "unlike", "except", "fails", "fail"}
+POLARITY = {"more", "less", "fewer", "higher", "lower", "better", "worse", "larger", "smaller", "above", "below",
+            "increase", "increases", "decrease", "decreases", "improves", "degrades", "outperforms", "underperforms"}
+
+
 def best_fuzzy(quote, text):
-    """Best SequenceMatcher ratio of quote against windows anchored on its rarest long words."""
+    """Best alignment of quote against passages around its rarest long words: (ratio, passage)."""
     words = sorted(set(re.findall(r"\w{6,}", quote)), key=len, reverse=True)[:4]
     n = len(quote)
-    best = 0.0
     anchors = []
     for w in words:
         start = 0
-        while True:
+        while len(anchors) <= 400:
             i = text.find(w, start)
-            if i < 0 or len(anchors) > 400:
+            if i < 0:
                 break
             anchors.append(i)
             start = i + 1
     if not anchors:
-        anchors = range(0, max(1, len(text) - n), max(1, n // 3))
+        anchors = range(0, max(1, len(text) - n) + 1, max(1, n // 3))
+    best, passage, seen = 0.0, "", set()
     for a in anchors:
-        for lo in (a - n, a - n // 2, a - n // 4, a):
-            lo = max(0, lo)
-            r = SequenceMatcher(None, quote, text[lo:lo + n + n // 5]).ratio()
-            if r > best:
-                best = r
-    return best
+        lo, hi = max(0, a - n - 40), min(len(text), a + n + 40)
+        if (lo, hi) in seen:
+            continue
+        seen.add((lo, hi))
+        region = text[lo:hi]
+        blocks = [b for b in SequenceMatcher(None, quote, region, autojunk=False).get_matching_blocks() if b.size]
+        while len(blocks) > 1 and blocks[0].size < 3:
+            blocks.pop(0)
+        while len(blocks) > 1 and blocks[-1].size < 3:
+            blocks.pop()
+        if not blocks:
+            continue
+        matched = sum(b.size for b in blocks)
+        span = region[blocks[0].b:blocks[-1].b + blocks[-1].size]
+        r = 2.0 * matched / (n + len(span))
+        if r > best:
+            best, passage = r, span
+    return best, passage
+
+
+def risky_differences(quote, passage):
+    """Words that differ between quote and passage and can flip the meaning."""
+    tok = lambda s: re.findall(r"[\w%.]+", s)
+    q, p = tok(quote), tok(passage)
+    diff = []
+    for op, i1, i2, j1, j2 in SequenceMatcher(None, q, p, autojunk=False).get_opcodes():
+        if op != "equal":
+            diff += q[i1:i2] + p[j1:j2]
+    return sorted({w for w in diff if w in NEGATIONS or w in POLARITY or w.endswith("n't") or re.search(r"\d", w)})
 
 
 def main(argv=None):
@@ -104,9 +134,14 @@ def main(argv=None):
         if q in text:
             print(f"OK    {rid} [{tag}]: exact")
             continue
-        ratio = best_fuzzy(q, text)
-        if ratio >= a.min_ratio:
+        ratio, passage = best_fuzzy(q, text)
+        risky = risky_differences(q, passage) if ratio >= a.min_ratio else []
+        if ratio >= a.min_ratio and not risky:
             print(f"OK    {rid} [{tag}]: fuzzy {ratio:.2f}")
+        elif risky:
+            failures += tag == "FT"
+            print(f"{'FAIL' if tag == 'FT' else 'WARN'}  {rid} [{tag}]: close ({ratio:.2f}) but differs in "
+                  f"{', '.join(risky)}; quote the passage exactly")
         else:
             failures += tag == "FT"
             print(f"{'FAIL' if tag == 'FT' else 'WARN'}  {rid} [{tag}]: not found (best {ratio:.2f}) in {src}")

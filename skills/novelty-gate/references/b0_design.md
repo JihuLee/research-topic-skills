@@ -28,7 +28,7 @@ Design it so that it is **informative in both directions**. A negative result sh
    - Write `thresholds.json` with numbers as JSON numbers, not prose.
    - Run `python3 scripts/freeze.py freeze thresholds.json`.
    - Quote the hash in the report.
-   - After results, thresholds may only be tightened through a logged amendment, never relaxed.
+   - After results, thresholds may only be tightened: `freeze.py amend --after-results` refuses anything else.
 
 8. **Outcome classes.**
    - **PROMOTE:** the evidence for the upgrade holds; raise novelty to the threshold, or proceed.
@@ -36,13 +36,7 @@ Design it so that it is **informative in both directions**. A negative result sh
    - **INCONCLUSIVE:** not enough power or samples. State the sample size that would be needed.
    - **BLOCKED:** access, installation or implementation failure. This says nothing about the hypothesis.
 
-9. **Data hygiene.**
-   - Split by salted hash of IDs, in fixed ranges.
-   - Group near-duplicates and same-source items before splitting.
-   - Check the training data of every pretrained weight against the evaluation pools.
-   - Check the license of each asset: images, annotations, code, weights.
-   - Find extra downloads triggered by default configs.
-   - Keep sealed and final sets outside anything an automated executor can read.
+9. **Data hygiene.** Apply the feasibility checks in [rubric.md](rubric.md) to the B0 data. In addition, split by salted hash of IDs in fixed ranges, and keep sealed and final sets outside anything an automated executor can read.
 
 10. **Cost.** Count GPU-hours, download GB and wall-clock time against the profile's tiers. Prefer the cheaper tier. Owned assets (`assets.md`) can make B0 nearly free.
 

@@ -53,7 +53,7 @@ corpus + profile + ledger ─► topic-scout ─► shortlist ─► novelty-gat
 
 ## Finding topics: level and depth
 
-Just ask; `topic-scout` turns your words into settings with `scripts/scout_settings.py` and shows them as a short card before it starts:
+Just ask. The agent reads your words for meaning, passes the settings to `scripts/scout_settings.py` as flags, and shows them as a short card before it starts. A word inside a topic name, such as "depth estimation" or "fast MRI", sets nothing.
 
 ```
 Find me a research topic.
@@ -62,27 +62,27 @@ Based on my code in ./my-project, thorough please.
 ```
 
 ```
-level: low (request (phrase)) · depth: quick (request (phrase)) · gate: none (the user picks what to gate)
-corpus: - (not used (level low))
+level: low (request) · depth: quick (request) · gate: none (the user picks what to gate)
+corpus: - [not used (level low)]
 direction: medical imaging · cutoff: 2026-11-04 · out: ./scout-2026-11-04-low
 profile: ~/research-profile (found)
 ```
 
-| level | Draws on | Phrases |
+| level | Draws on | For example |
 |---|---|---|
 | high | mostly your own material: corpus, assets, ledger near-misses (80%) | "based on my code", "my paper", "follow-up" |
 | medium (default) | half your material, half recent literature | (default) |
 | low | recent literature only, matched to your field and taste; the corpus is never opened | "exploratory", "broadly", "just the field" |
 
-| depth | Goes until | Phrases |
+| depth | Goes until | For example |
 |---|---|---|
 | quick | numbered candidates with quick novelty signals; you pick what to vet | "quick", "candidates only" |
 | standard (default) | the top candidate vetted by `novelty-gate` in light mode | (default) |
 | full | the top three vetted in full mode | "thorough", "in depth" |
 
-- **Other languages:** Korean phrases are recognised too; see the [Korean reference](REFERENCE.ko.md).
+- **Any language:** the agent interprets the request, so Korean or other phrasing works the same way.
 - **Never affected by the level:** exclusions, budgets, the ground-truth policy, the ledger duplicate check, and the gate's standards.
-- **Explicit settings:** you can state any of them directly, for example `level: low`, `depth: full`, `field: …`, `cutoff 2026-01-31`, `out: ./scout`, or a path to your material.
+- **Explicit settings:** you can state any of them directly, for example `level: low`, `depth: full`, `field: …`, `cutoff 2026-01-31`, `out: ./scout`, or a path to your material. The script takes them as `--level`, `--depth`, `--field`, `--cutoff`, `--out`, `--corpus` and `--extra-language`.
 - **Profile defaults:** `scout_level`, `scout_depth` and `corpus_paths` in your profile.
 - **Follow-ups:** candidates are numbered C1, C2, … and saved in `candidates.jsonl`, so you can continue with "gate C3" or "brief C1".
 - **First use:** with no profile yet, the skill asks four short questions once (areas, exclusions, budget, language), creates `~/research-profile` with `scripts/profile_init.py`, and continues.
@@ -261,12 +261,12 @@ All scripts use only the Python standard library.
 |---|---|---|
 | `guard.py` | all | Blocks use inside autonomous pipelines (exit code 3) |
 | `lit_fetch.py` | gate, scout | Literature commands (details below) |
-| `quote_check.py` | gate, scout | Checks that each FT quote in `evidence.jsonl` occurs in the cited text, after normalising ligatures, line-break hyphens and whitespace |
+| `quote_check.py` | gate, scout | Checks that each FT quote in `evidence.jsonl` occurs in the cited text, after normalising ligatures, line-break hyphens and whitespace. A near match is rejected when the differing words include a negation, a number or a comparison word |
 | `report_lint.py` | all | `gate OUT_DIR`: summary schema, kill evidence, four baselines, B0, coverage, and the human reports. `scout OUT_DIR`: candidate records and the human reports. `human REPORT.md`: one human report. `brief`: unfilled fields, placeholders, literature URL count, threshold hash |
 | `ledger.py` | all | `validate`, `list`, `check` (near-duplicates), `add` (including `--from-summary`), `update` |
-| `freeze.py` | gate, brief | `template`, `freeze` (sha256 of canonical JSON), `verify`, `amend --reason` (logs every change; after results, amendments may only tighten) |
+| `freeze.py` | gate, brief | `template`; `freeze` (sha256 of canonical JSON plus a snapshot; refuses to re-freeze a changed file); `verify`; `amend --reason [--after-results]` (logs every change; after results it accepts only provably tighter numbers and refuses changed prose conditions) |
 | `corpus_scan.py` | scout | Indexes leads in a corpus |
-| `scout_settings.py` | scout | Resolves level, depth, corpus, direction, cutoff and output directory from the request, profile and defaults; prints the settings card |
+| `scout_settings.py` | scout | Fills level, depth, corpus, field, cutoff, output directory and extra language from explicit flags, then the profile, then the defaults; prints the settings card |
 | `profile_init.py` | all | Creates a profile directory from a few answers (never overwrites without `--force`) |
 
 `lit_fetch.py` commands:
@@ -308,15 +308,17 @@ python3 tools/validate_skills.py                          # Agent Skills spec, p
 
 **Backtests**
 
-[`skills/novelty-gate/evals/`](../skills/novelty-gate/evals) holds three public cases with known answers:
+[`skills/novelty-gate/evals/`](../skills/novelty-gate/evals) holds four public cases with known answers. Three are chosen so that a strong model without the skill is likely to miss them:
 
 | Case | What it checks |
 |---|---|
-| `kills-test-time-dropout-uncertainty` | Finds the named paper that already contains the idea |
-| `flags-theory-forced-rank-metric` | Recognises a theory-forced result |
+| `finds-weeks-old-killer` | Finds a paper published a few weeks before the cutoff that already contains the idea |
+| `flags-mean-only-em-blind-deblurring` | Sees a classical flaw under new vocabulary (an EM step that drops the covariance term) and names the prior work |
+| `flags-theory-forced-joint-coverage-gap` | Recognises that a reported gap is a mathematical necessity, not a finding |
 | `respects-literature-cutoff` | Does not kill with papers published after the cutoff |
 
 - Run them with the skill-creator eval procedure in Claude Code, or from the skill directory with `claude plugin eval . --allow-tools Write,Edit,Bash,WebSearch,WebFetch,Agent,Skill` (Claude Code v2.1.269 or later).
+- `claude plugin eval` runs every case with and without the skill, so the difference shows what the skill adds.
 - Each case is a full research session, so expect real time and token cost.
 
 **Private backtests are the most informative.** Build cases from your own past proposals and their real killers, and keep the answers from leaking:
@@ -352,6 +354,14 @@ python3 tools/validate_skills.py                          # Agent Skills spec, p
 
 ## Changelog
 
+- **0.3.1**
+  - Shorter skills: the three SKILL.md bodies drop from about 330 to about 115 lines, and the descriptions from 2,640 to about 1,770 characters. Repeated text now lives in one place.
+  - research-brief no longer claims general proposal writing; for an unvetted idea it offers novelty-gate first.
+  - topic-scout: the agent maps the request to flags by meaning; `scout_settings.py` no longer matches words, so "depth estimation" no longer selects depth full.
+  - `quote_check.py` aligns quotes properly and rejects near matches that differ in a negation, number or comparison word.
+  - `freeze.py` refuses to re-freeze a changed file and enforces tighten-only amendments after results.
+  - The human-report lint warns, instead of failing, on bare tokens such as "FT" or "E5" that may be ordinary words.
+  - New evals that a strong model without the skill is likely to fail.
 - **0.3.0**
   - Each run writes a short human report (`report.md`) and a separate audit record (`details.md`, plus `gate_summary.json` for the novelty gate).
   - The human report is in English by default. An optional extra language (`extra_report_language`, or "also in Korean") adds `report.<code>.md`; only the prose is translated.

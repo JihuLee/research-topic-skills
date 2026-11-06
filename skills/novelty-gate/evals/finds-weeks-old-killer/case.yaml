@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: finds-weeks-old-killer
+expected_outcome: |
+  The gate finds Predicted Class Correction (Octadion, Yudistira & Nakashima, arXiv 2610.25349, October 2026), which regresses the per-class offset from geometric descriptors of the classifier head, and does not recommend the idea. The paper is a few weeks old relative to the cutoff, so a model without a search has no way to know it.

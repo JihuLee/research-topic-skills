@@ -52,7 +52,7 @@ corpus + profile + ledger ─► topic-scout ─► shortlist ─► novelty-gat
 
 ## 주제 찾기: level과 depth
 
-그냥 요청하면 된다. `topic-scout`가 `scripts/scout_settings.py`로 요청을 설정으로 바꾸고, 시작하기 전에 짧은 카드로 보여 준다.
+그냥 요청하면 된다. 에이전트가 요청의 뜻을 읽어 설정을 `scripts/scout_settings.py`에 플래그로 넘기고, 시작하기 전에 짧은 카드로 보여 준다. "depth estimation"이나 "fast MRI"처럼 주제 이름 안의 단어는 설정으로 읽지 않는다.
 
 ```
 주제 찾아줘
@@ -60,21 +60,21 @@ corpus + profile + ledger ─► topic-scout ─► shortlist ─► novelty-gat
 ./my-project 내 코드 기반으로 꼼꼼하게 주제 찾아줘
 ```
 
-| level | 재료 | 알아듣는 말 |
+| level | 재료 | 예시 |
 |---|---|---|
 | high | 대부분 내 자료(코퍼스, 보유 자산, ledger의 근접 후보, 80%) | "내 코드", "내 논문", "후속" |
 | medium (기본) | 내 자료 절반, 최근 문헌 절반 | (기본값) |
 | low | 분야와 취향만 맞춰 최근 문헌을 탐색. 코퍼스는 열지 않는다 | "탐색적", "넓게", "분야만" |
 
-| depth | 어디까지 하나 | 알아듣는 말 |
+| depth | 어디까지 하나 | 예시 |
 |---|---|---|
 | quick | 번호 붙은 후보와 가벼운 검색 결과까지. 검토할 후보는 사용자가 고른다 | "빠르게", "후보만", "간단히" |
 | standard (기본) | 1위 후보 하나를 `novelty-gate` light 모드로 검토 | (기본값) |
 | full | 상위 3개를 full 모드로 검토 | "꼼꼼", "자세히", "깊게" |
 
-- **다른 언어:** 영어 문구도 알아듣는다. [영어 상세 문서](REFERENCE.md)를 참고한다.
+- **언어:** 에이전트가 뜻을 해석하므로 영어나 다른 언어로 말해도 같다.
 - **level과 무관하게 지키는 것:** 제외 분야, 예산, 정답 정책, ledger 중복 검사, 판정 기준.
-- **직접 지정:** `level: low`, `depth: full`, `분야는 …`, `기준일 2026-01-31`, `out: ./scout`, 자료 경로를 요청에 적으면 그대로 쓴다.
+- **직접 지정:** `level: low`, `depth: full`, `분야는 …`, `기준일 2026-01-31`, `out: ./scout`, 자료 경로를 요청에 적으면 그대로 쓴다. 스크립트에는 `--level`, `--depth`, `--field`, `--cutoff`, `--out`, `--corpus`, `--extra-language`로 넘어간다.
 - **프로필 기본값:** `scout_level`, `scout_depth`, `corpus_paths`.
 - **이어서 쓰기:** 후보는 C1, C2, …로 번호를 붙여 `candidates.jsonl`에 저장한다. "C3 검토해줘", "C1로 명세 써줘"처럼 이어서 요청하면 된다.
 - **처음 쓸 때:** 프로필이 없으면 네 가지(분야, 제외 분야, 예산, 언어)만 한 번 묻고, `scripts/profile_init.py`로 `~/research-profile`을 만든 뒤 이어서 진행한다.
@@ -250,12 +250,12 @@ ledger는 두 가지에 쓰인다.
 | 스크립트 | 위치 | 기능 |
 |---|---|---|
 | `lit_fetch.py` | gate, scout | `arxiv`(날짜 필터, 엄격한 키워드), `openalex`(관련도 검색과 날짜 필터), `citing`(forward citation), `resolve`(인용 존재 확인; arXiv id도 OpenAlex를 먼저 조회하고, `--no-arxiv` 지원), `pdf`(받기와 텍스트 추출). `--save-abstracts DIR`로 초록을 파일로 남겨 ABS 인용도 대조할 수 있다. HTTP 429가 나면 한 번만 짧게 재시도한 뒤 안내와 함께 바로 실패한다. OpenAlex는 하루 한도가 있다(키 없이 검색 약 100번, 무료 키를 쓰면 약 10배). openalex.org Settings에서 키를 받아 `export OPENALEX_API_KEY=...`로 설정한다 |
-| `quote_check.py` | gate, scout | `evidence.jsonl`의 FT 인용이 원문에 실제로 있는지 정규화해서 대조한다(합자, 줄바꿈 하이픈, 공백) |
+| `quote_check.py` | gate, scout | `evidence.jsonl`의 FT 인용이 원문에 실제로 있는지 정규화해서 대조한다(합자, 줄바꿈 하이픈, 공백). 비슷하지만 부정어, 숫자, 비교어가 다르면 거부한다 |
 | `report_lint.py` | 모두 | `gate OUT_DIR`: summary 스키마, 탈락 근거, 대조군 4종, B0, coverage, 사람용 보고서. `scout OUT_DIR`: 후보 기록과 사람용 보고서. `human REPORT.md`: 사람용 보고서 하나. `brief`: 빈 항목, 자리표시, 문헌 URL 수, 임계값 해시 |
 | `ledger.py` | 모두 | `validate`, `list`, `check`(근접 중복), `add`(`--from-summary` 포함), `update` |
-| `freeze.py` | gate, brief | `template`, `freeze`(정규화 JSON의 sha256), `verify`(어긋나면 실패), `amend --reason`(수정 이력을 `.amendments.jsonl`에 남김; 결과를 본 뒤에는 강화만 허용) |
+| `freeze.py` | gate, brief | `template`; `freeze`(정규화 JSON의 sha256과 스냅샷; 바뀐 파일의 재고정은 거부); `verify`(어긋나면 실패); `amend --reason [--after-results]`(수정 이력을 `.amendments.jsonl`에 남김; 결과를 본 뒤에는 확실히 강화된 숫자만 받고 산문 조건 변경은 거부) |
 | `corpus_scan.py` | scout | 코퍼스에서 단서 위치를 색인한다 |
-| `scout_settings.py` | scout | 요청, 프로필, 기본값에서 level, depth, 코퍼스, 분야, 기준일, 출력 폴더를 정하고 설정 카드를 출력한다 |
+| `scout_settings.py` | scout | 명시한 플래그, 프로필, 기본값 순으로 level, depth, 코퍼스, 분야, 기준일, 출력 폴더, 추가 언어를 정하고 설정 카드를 출력한다 |
 | `profile_init.py` | 모두 | 몇 가지 답으로 프로필 폴더를 만든다(`--force` 없이는 덮어쓰지 않음) |
 | `guard.py` | 모두 | 자율 파이프라인 안이면 차단한다(종료 코드 3) |
 
@@ -290,15 +290,17 @@ python3 tools/validate_skills.py               # Agent Skills 규격과 이식�
 
 **백테스트 (스킬 품질)**
 
-`skills/novelty-gate/evals/`에 정답이 알려진 공개 사례 3개가 있다.
+`skills/novelty-gate/evals/`에 정답이 알려진 공개 사례 4개가 있다. 그중 3개는 스킬 없는 강한 모델이 놓치기 쉬운 사례로 골랐다.
 
 | 사례 | 확인하는 것 |
 |---|---|
-| `kills-test-time-dropout-uncertainty` | 아이디어를 이미 담은 논문을 이름으로 찾는가 |
-| `flags-theory-forced-rank-metric` | 이론 강제 결과를 알아보는가 |
+| `finds-weeks-old-killer` | 기준일 몇 주 전에 나온, 아이디어를 이미 담은 논문을 찾는가 |
+| `flags-mean-only-em-blind-deblurring` | 새 용어로 포장된 고전적 결함(공분산 항을 버린 EM 단계)을 알아보고 선행 연구를 대는가 |
+| `flags-theory-forced-joint-coverage-gap` | 보고된 격차가 발견이 아니라 수학적 필연임을 알아보는가 |
 | `respects-literature-cutoff` | 기준일 이후 논문을 탈락 근거로 쓰지 않는가 |
 
 - 실행: Claude Code에서 skill-creator의 eval 절차를 따르거나, 스킬 폴더에서 `claude plugin eval . --allow-tools Write,Edit,Bash,WebSearch,WebFetch,Agent,Skill`을 쓴다(Claude Code v2.1.269 이상).
+- `claude plugin eval`은 각 사례를 스킬이 있을 때와 없을 때 모두 돌리므로, 차이가 곧 스킬이 더하는 몫이다.
 - 비용: 한 사례가 조사 세션 한 번이라서 시간과 토큰이 꽤 든다.
 
 **개인 백테스트를 권한다.** 자기 과거 제안서와 실제 탈락 원인으로 사례를 만들면 가장 정확한 평가가 된다. 다만 정답이 새지 않게 해야 한다.
@@ -335,6 +337,14 @@ python3 tools/validate_skills.py               # Agent Skills 규격과 이식�
 
 ## 변경 이력
 
+- **0.3.1**
+  - 스킬을 줄였다. SKILL.md 본문 세 개가 약 330줄에서 약 115줄로, description이 2,640자에서 약 1,770자로 줄었다. 반복되던 내용은 한 곳에만 둔다.
+  - research-brief가 일반 제안서 작성 요청을 가져가지 않는다. 검증 전 아이디어에는 novelty-gate를 먼저 권한다.
+  - topic-scout: 에이전트가 요청의 뜻을 플래그로 옮긴다. `scout_settings.py`가 단어를 매칭하지 않으므로 "depth estimation"이 depth full로 바뀌지 않는다.
+  - `quote_check.py`가 인용을 제대로 정렬하고, 부정어, 숫자, 비교어가 다른 근사 일치를 거부한다.
+  - `freeze.py`가 바뀐 파일의 재고정을 거부하고, 결과 이후 수정은 강화만 허용하도록 강제한다.
+  - 사람용 보고서 lint가 "FT", "E5"처럼 일반 단어일 수 있는 맨 토큰은 실패 대신 경고로 처리한다.
+  - 스킬 없는 강한 모델이 놓치기 쉬운 eval로 바꿨다.
 - **0.3.0**
   - 실행마다 짧은 사람용 보고서(`report.md`)와 별도의 감사 기록(`details.md`, novelty-gate는 `gate_summary.json`도)을 만든다.
   - 사람용 보고서는 기본이 영어다. 추가 언어(`extra_report_language` 또는 "한국어로도")를 정하면 `report.<code>.md`도 만든다. 산문만 번역한다.

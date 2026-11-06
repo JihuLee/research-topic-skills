@@ -1,4 +1,0 @@
-schema_version: "1.1"
-name: kills-test-time-dropout-uncertainty
-expected_outcome: |
-  The gate kills the idea, naming Gal & Ghahramani, "Dropout as a Bayesian Approximation" (arXiv 1506.02142, ICML 2016), which already shows exactly this, and ends with a valid gate-summary block. No experiments or downloads.

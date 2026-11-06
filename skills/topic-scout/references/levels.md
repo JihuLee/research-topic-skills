@@ -32,12 +32,7 @@ The quota is a target share of the raw candidates. With 12 raw candidates at med
 | standard (default) | same, signals for the top ~8 | top 1, novelty-gate in light mode | ~30 | ~30 min |
 | full | same, signals for all survivors | top 3, novelty-gate in full mode | ~50 | an hour or more |
 
-Light mode of the gate:
-- no subagents;
-- query formulations shared across claims;
-- at most 4 decisive priors verified in full text.
-
-Full mode follows the gate's normal workflow.
+Light and full mode are defined in the novelty-gate skill.
 
 ## Recording
 
