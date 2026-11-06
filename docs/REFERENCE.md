@@ -354,6 +354,9 @@ python3 tools/validate_skills.py                          # Agent Skills spec, p
 
 ## Changelog
 
+- **0.3.2**
+  - Skill descriptions and bodies are English only. They say "in any language" instead of listing Korean phrases.
+  - A routing test with Korean requests (26 runs: topic search, novelty check, study plan, and unrelated requests) gave the same result before and after: every request went to the right skill, and none of the unrelated ones triggered a skill. English requests route as before.
 - **0.3.1**
   - Shorter skills: the three SKILL.md bodies drop from about 330 to about 115 lines, and the descriptions from 2,640 to about 1,770 characters. Repeated text now lives in one place.
   - research-brief no longer claims general proposal writing; for an unvetted idea it offers novelty-gate first.

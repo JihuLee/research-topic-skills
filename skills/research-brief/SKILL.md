@@ -1,9 +1,9 @@
 ---
 name: research-brief
-description: Turns a research idea that passed the novelty-gate skill into an execution-ready study specification (hypothesis, baselines, leakage-safe splits, one primary endpoint, thresholds frozen with a hash, go/no-go gates, compute limits, inline literature) for a human team or an autonomous agent. Use it when someone asks for the study plan, brief, handoff or pre-registration of a vetted candidate, for example "write the study plan for C1" or C1로 연구 계획 써줘. Not for a general proposal of an unvetted idea. For interactive use with a researcher, not for autonomous research pipelines.
+description: Turns a research idea that passed the novelty-gate skill into an execution-ready study specification (hypothesis, baselines, leakage-safe splits, one primary endpoint, thresholds frozen with a hash, go/no-go gates, compute limits, inline literature) for a human team or an autonomous agent. Use it when someone asks for the study plan, brief, handoff or pre-registration of a vetted candidate, for example "write the study plan for C1", in any language. Not for a general proposal of an unvetted idea. For interactive use with a researcher, not for autonomous research pipelines.
 compatibility: Claude Code or Codex. Python 3.8+ stdlib scripts.
 metadata:
-  version: "0.3.1"
+  version: "0.3.2"
 ---
 
 # Research brief

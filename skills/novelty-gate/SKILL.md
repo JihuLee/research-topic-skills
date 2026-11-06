@@ -1,9 +1,9 @@
 ---
 name: novelty-gate
-description: Adversarial novelty and feasibility check for a research idea or proposal, before any experiment. Hunts the closest recent prior work and classical equivalents, verifies decisive quotes in full text, scores novelty and feasibility 1-5, and designs the cheapest experiment that could prove the idea wrong (B0). Use it when someone wants to know whether a research idea is new or already done, or asks for a novelty or prior-work check or a go/no-go before implementing, including 신규성 검토, 선행 연구 확인, 누가 이미 했는지 봐줘. For interactive use with a researcher, not for autonomous research pipelines.
+description: Adversarial novelty and feasibility check for a research idea or proposal, before any experiment. Hunts the closest recent prior work and classical equivalents, verifies decisive quotes in full text, scores novelty and feasibility 1-5, and designs the cheapest experiment that could prove the idea wrong (B0). Use it when someone wants to know whether a research idea is new or already done, or asks whether anyone has done it, for a novelty or prior-work check, or for a go/no-go before implementing, in any language. For interactive use with a researcher, not for autonomous research pipelines.
 compatibility: Claude Code or Codex. Needs web access for literature search. Python 3.8+ stdlib scripts; pymupdf or pdftotext optional for PDF text.
 metadata:
-  version: "0.3.1"
+  version: "0.3.2"
 ---
 
 # Novelty gate

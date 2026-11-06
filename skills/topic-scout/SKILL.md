@@ -1,9 +1,9 @@
 ---
 name: topic-scout
-description: Finds research topics tailored to one researcher. A level sets how much it uses their own papers, code and past reviews (high) versus only their field and recent literature (low); a depth sets how far it vets (quick = candidates only, standard = top 1, full = top 3 through the novelty-gate skill). Drops only objectively infeasible or already-rejected ideas. Use it when someone asks to find, brainstorm or scout research topics, follow-ups to their work, or what to work on next, including 연구 주제 찾아줘, 후속 연구, 다음 연구 뭐 하지. For interactive use with a researcher, not for autonomous research pipelines.
+description: Finds research topics tailored to one researcher. A level sets how much it uses their own papers, code and past reviews (high) versus only their field and recent literature (low); a depth sets how far it vets (quick = candidates only, standard = top 1, full = top 3 through the novelty-gate skill). Drops only objectively infeasible or already-rejected ideas. Use it when someone asks to find, brainstorm or scout research topics, follow-ups to their work, or what to work on next, in any language. For interactive use with a researcher, not for autonomous research pipelines.
 compatibility: Claude Code or Codex, used together with the novelty-gate skill. Needs web access. Python 3.8+ stdlib scripts; pymupdf optional for scanning PDFs.
 metadata:
-  version: "0.3.1"
+  version: "0.3.2"
 ---
 
 # Topic scout
@@ -13,7 +13,7 @@ Generate broadly, drop early only on objective facts, and let the novelty gate d
 **Who may use it:** a researcher, directly or through agents working for them in this session; not autonomous pipelines. First run `python3 <this-skill-dir>/scripts/guard.py` and stop if it exits non-zero. Call scripts by absolute path (`<this-skill-dir>/scripts/…`) and write only to the output directory.
 
 ## 1. Settle the settings
-Map the user's words to flags **by meaning**, then run the script so the same settings always produce the same plan:
+Map the user's words to flags **by meaning**, in whatever language they write, then run the script so the same settings always produce the same plan:
 
 ```bash
 python3 <this-skill-dir>/scripts/scout_settings.py [--level high|medium|low] [--depth quick|standard|full] \
@@ -22,11 +22,11 @@ python3 <this-skill-dir>/scripts/scout_settings.py [--level high|medium|low] [--
 
 | The user means | Flag |
 |---|---|
-| use my code, my paper, a follow-up (내 코드, 내 논문, 후속) | `--level high` |
-| explore, just the field (탐색적으로, 분야만) | `--level low` |
-| quick, candidates only (빠르게, 후보만) | `--depth quick` |
-| thorough, check the top three (꼼꼼하게, 자세히) | `--depth full` |
-| also in Korean (한국어로도) | `--extra-language ko` |
+| use my code, my paper, a follow-up | `--level high` |
+| explore, just the field | `--level low` |
+| quick, candidates only | `--depth quick` |
+| thorough, check the top three | `--depth full` |
+| also in Korean (or another language) | `--extra-language ko` (ISO 639-1) |
 
 - Words inside a topic name are not settings: "depth estimation" or "fast MRI" set nothing. Omit a flag when the user did not ask; the script fills it from the profile, then the defaults (medium, standard).
 - Paste the printed card (3–5 lines) to the user in their language and proceed without asking.
@@ -56,4 +56,4 @@ Rank by what the first test teaches either way, own-asset edge (weighted by leve
 - Never append to the ledger yourself. The gate proposes entries for gated candidates; offer optional `dropped` entries.
 
 ## Follow-ups
-For "check C3", "C3도 검증해줘", "write the study plan for C1" or "C1로 연구 계획 써줘", read `candidates.jsonl` from the latest scout run in the working directory (or the one named). Run novelty-gate on that record (light mode unless asked for full), or research-brief on its gate output; gate it first if it has none.
+For follow-ups that name a candidate, such as "check C3" or "write the study plan for C1" (in any language), read `candidates.jsonl` from the latest scout run in the working directory (or the one named). Run novelty-gate on that record (light mode unless asked for full), or research-brief on its gate output; gate it first if it has none.
