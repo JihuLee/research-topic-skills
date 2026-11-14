@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: flags-irls-under-new-name
+expected_outcome: |
+  The gate reduces the rule to its math and recognizes iteratively reweighted least squares for least absolute deviations (L1) regression, a classical robust M-estimation method (Schlossmacher 1973; Beaton & Tukey 1974; Holland & Welsch 1977). It rejects the idea as stated and names the classical prior.

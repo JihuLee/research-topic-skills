@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: flags-theory-forced-winners-curse
+expected_outcome: |
+  The gate recognizes the drop as theory-forced: choosing the best models by a noisy validation score makes their validation scores biased upward, so they are expected to score lower on fresh data even with no overfitting and no distribution shift (regression to the mean, the winner's curse). The drop alone is not evidence of overfitting, and the claim is not recommended.

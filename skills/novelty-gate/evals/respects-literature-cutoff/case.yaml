@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: respects-literature-cutoff
+expected_outcome: |
+  The gate scores only against work up to 2017-05-31. "Attention Is All You Need" (arXiv 1706.03762, June 2017) is not used as a killer; if mentioned it is labeled post-cutoff. The report cites pre-cutoff attention work such as arXiv 1409.0473, 1606.01933, 1703.03130 or 1705.03122.
